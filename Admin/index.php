@@ -1,24 +1,30 @@
 <?php
 require_once '../config.php';
-require_login();
+require_login(); // Ini sudah menjalankan session_start()
+
+// Pengecekan role, sudah benar
 if ($_SESSION['user_role'] !== 'admin') {
     header("Location: ../login.php");
     exit;
 }
+
+// --- MODIFIKASI DIMULAI ---
+// Ambil variabel dari session untuk ditampilkan.
+// Gunakan htmlspecialchars untuk keamanan (mencegah XSS)
+$username = htmlspecialchars($_SESSION['user_name'], ENT_QUOTES, 'UTF-8');
+// Ambil role dan ubah huruf pertamanya menjadi kapital
+$userrole = ucfirst(htmlspecialchars($_SESSION['user_role'], ENT_QUOTES, 'UTF-8'));
+// --- MODIFIKASI SELESAI ---
 ?>
 <!doctype html>
 <html lang="en">
-  <!--begin::Head-->
   <head>
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
     <title>SIAKADEMIKA | Sistem Akademik Informatika A</title>
-    <!--begin::Accessibility Meta Tags-->
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes" />
     <meta name="color-scheme" content="light dark" />
     <meta name="theme-color" content="#007bff" media="(prefers-color-scheme: light)" />
     <meta name="theme-color" content="#1a1a1a" media="(prefers-color-scheme: dark)" />
-    <!--end::Accessibility Meta Tags-->
-    <!--begin::Primary Meta Tags-->
     <meta name="title" content="AdminLTE 4 | Theme Customize" />
     <meta name="author" content="ColorlibHQ" />
     <meta
@@ -29,13 +35,8 @@ if ($_SESSION['user_role'] !== 'admin') {
       name="keywords"
       content="bootstrap 5, bootstrap, bootstrap 5 admin dashboard, bootstrap 5 dashboard, bootstrap 5 charts, bootstrap 5 calendar, bootstrap 5 datepicker, bootstrap 5 tables, bootstrap 5 datatable, vanilla js datatable, colorlibhq, colorlibhq dashboard, colorlibhq admin dashboard, accessible admin panel, WCAG compliant"
     />
-    <!--end::Primary Meta Tags-->
-    <!--begin::Accessibility Features-->
-    <!-- Skip links will be dynamically added by accessibility.js -->
     <meta name="supported-color-schemes" content="light dark" />
     <link rel="preload" href="../assets/css/adminlte.css" as="style" />
-    <!--end::Accessibility Features-->
-    <!--begin::Fonts-->
     <link
       rel="stylesheet"
       href="https://cdn.jsdelivr.net/npm/@fontsource/source-sans-3@5.0.12/index.css"
@@ -44,35 +45,22 @@ if ($_SESSION['user_role'] !== 'admin') {
       media="print"
       onload="this.media='all'"
     />
-    <!--end::Fonts-->
-    <!--begin::Third Party Plugin(OverlayScrollbars)-->
     <link
       rel="stylesheet"
       href="https://cdn.jsdelivr.net/npm/overlayscrollbars@2.11.0/styles/overlayscrollbars.min.css"
       crossorigin="anonymous"
     />
-    <!--end::Third Party Plugin(OverlayScrollbars)-->
-    <!--begin::Third Party Plugin(Bootstrap Icons)-->
     <link
       rel="stylesheet"
       href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.13.1/font/bootstrap-icons.min.css"
       crossorigin="anonymous"
     />
-    <!--end::Third Party Plugin(Bootstrap Icons)-->
-    <!--begin::Required Plugin(AdminLTE)-->
     <link rel="stylesheet" href="../assets/css/adminlte.css" />
-    <!--end::Required Plugin(AdminLTE)-->
-  </head>
-  <!--end::Head-->
-  <!--begin::Body-->
+    </head>
   <body class="sidebar-expand-lg sidebar-open bg-body-tertiary">
-    <!--begin::App Wrapper-->
     <div class="app-wrapper">
-      <!--begin::Header-->
       <nav class="app-header navbar navbar-expand navbar-white navbar-light">
-        <!--begin::Container-->
         <div class="container-fluid">
-          <!--begin::Start Navbar Links-->
           <ul class="navbar-nav">
             <li class="nav-item">
               <a class="nav-link" data-lte-toggle="sidebar" href="#" role="button">
@@ -82,17 +70,12 @@ if ($_SESSION['user_role'] !== 'admin') {
             <li class="nav-item d-none d-md-block"><a href="?p=dashboard" class="nav-link">Home</a></li>
             <li class="nav-item d-none d-md-block"><a href="#" class="nav-link">Contact</a></li>
           </ul>
-          <!--end::Start Navbar Links-->
-          <!--begin::End Navbar Links-->
           <ul class="navbar-nav ms-auto">
-            <!--begin::Navbar Search-->
             <li class="nav-item">
               <a class="nav-link" data-widget="navbar-search" href="#" role="button">
                 <i class="bi bi-search"></i>
               </a>
             </li>
-            <!--end::Navbar Search-->
-            <!--begin::Messages Dropdown Menu-->
             <li class="nav-item dropdown">
               <a class="nav-link" data-bs-toggle="dropdown" href="#">
                 <i class="bi bi-chat-text"></i>
@@ -100,7 +83,6 @@ if ($_SESSION['user_role'] !== 'admin') {
               </a>
               <div class="dropdown-menu dropdown-menu-lg dropdown-menu-end">
                 <a href="#" class="dropdown-item">
-                  <!--begin::Message-->
                   <div class="d-flex">
                     <div class="flex-shrink-0">
                       <img
@@ -122,11 +104,9 @@ if ($_SESSION['user_role'] !== 'admin') {
                       </p>
                     </div>
                   </div>
-                  <!--end::Message-->
-                </a>
+                  </a>
                 <div class="dropdown-divider"></div>
                 <a href="#" class="dropdown-item">
-                  <!--begin::Message-->
                   <div class="d-flex">
                     <div class="flex-shrink-0">
                       <img
@@ -148,11 +128,9 @@ if ($_SESSION['user_role'] !== 'admin') {
                       </p>
                     </div>
                   </div>
-                  <!--end::Message-->
-                </a>
+                  </a>
                 <div class="dropdown-divider"></div>
                 <a href="#" class="dropdown-item">
-                  <!--begin::Message-->
                   <div class="d-flex">
                     <div class="flex-shrink-0">
                       <img
@@ -174,14 +152,11 @@ if ($_SESSION['user_role'] !== 'admin') {
                       </p>
                     </div>
                   </div>
-                  <!--end::Message-->
-                </a>
+                  </a>
                 <div class="dropdown-divider"></div>
                 <a href="#" class="dropdown-item dropdown-footer">See All Messages</a>
               </div>
             </li>
-            <!--end::Messages Dropdown Menu-->
-            <!--begin::Notifications Dropdown Menu-->
             <li class="nav-item dropdown">
               <a class="nav-link" data-bs-toggle="dropdown" href="#">
                 <i class="bi bi-bell-fill"></i>
@@ -208,16 +183,12 @@ if ($_SESSION['user_role'] !== 'admin') {
                 <a href="#" class="dropdown-item dropdown-footer"> See All Notifications </a>
               </div>
             </li>
-            <!--end::Notifications Dropdown Menu-->
-            <!--begin::Fullscreen Toggle-->
             <li class="nav-item">
               <a class="nav-link" href="#" data-lte-toggle="fullscreen">
                 <i data-lte-icon="maximize" class="bi bi-arrows-fullscreen"></i>
                 <i data-lte-icon="minimize" class="bi bi-fullscreen-exit" style="display: none"></i>
               </a>
             </li>
-            <!--end::Fullscreen Toggle-->
-            <!--begin::User Menu Dropdown-->
             <li class="nav-item dropdown user-menu">
               <a href="#" class="nav-link dropdown-toggle" data-bs-toggle="dropdown">
                 <img
@@ -225,10 +196,9 @@ if ($_SESSION['user_role'] !== 'admin') {
                   class="user-image rounded-circle shadow"
                   alt="User Image"
                 />
-                <span class="d-none d-md-inline">Nama User</span>
+                <span class="d-none d-md-inline"><?php echo $username; ?></span>
               </a>
               <ul class="dropdown-menu dropdown-menu-lg dropdown-menu-end">
-                <!--begin::User Image-->
                 <li class="user-header text-bg-primary">
                   <img
                     src="../assets/img/user2-160x160.jpg"
@@ -236,53 +206,35 @@ if ($_SESSION['user_role'] !== 'admin') {
                     alt="User Image"
                   />
                   <p>
-                    Alexander Pierce - Web Developer
+                    <?php echo $username; ?> - <?php echo $userrole; ?>
                     <small>Member since Nov. 2023</small>
                   </p>
                 </li>
-                <!--end::User Image-->
-                <!--begin::Menu Body-->
                 <li class="user-body">
-                  <!--begin::Row-->
                   <div class="row">
                     <div class="col-4 text-center"><a href="#">Followers</a></div>
                     <div class="col-4 text-center"><a href="#">Sales</a></div>
                     <div class="col-4 text-center"><a href="#">Friends</a></div>
                   </div>
-                  <!--end::Row-->
-                </li>
-                <!--end::Menu Body-->
-                <!--begin::Menu Footer-->
+                  </li>
                 <li class="user-footer">
                   <a href="#" class="btn btn-default btn-flat">Profile</a>
-                  <a href="#" class="btn btn-default btn-flat float-end">Sign out</a>
+                  <a href="../logout.php" class="btn btn-default btn-flat float-end">Logout</a>
                 </li>
-                <!--end::Menu Footer-->
-              </ul>
+                </ul>
             </li>
-            <!--end::User Menu Dropdown-->
-          </ul>
-          <!--end::End Navbar Links-->
-        </div>
-        <!--end::Container-->
-      </nav>
-      <!--end::Header-->
-      <!--begin::Sidebar-->
+            </ul>
+          </div>
+        </nav>
       <aside class="app-sidebar bg-primary-subtle" data-bs-theme="dark">
-        <!--begin::Sidebar Brand-->
         <div class="sidebar-brand">
-          <!--begin::Brand Link-->
-        <a href="?p=dashboard" class="brand-link">
+          <a href="?p=dashboard" class="brand-link">
             <i class="brand-icon bi bi-mortarboard-fill"></i>
             <span class="brand-text">SIAKADEMIKA</span>
         </a>
-          <!--end::Brand Link-->
-        </div>
-        <!--end::Sidebar Brand-->
-        <!--begin::Sidebar Wrapper-->
+          </div>
         <div class="sidebar-wrapper">
           <nav class="mt-2">
-            <!--begin::Sidebar Menu-->
             <ul
               class="nav sidebar-menu flex-column"
               data-lte-toggle="treeview"
@@ -309,47 +261,31 @@ if ($_SESSION['user_role'] !== 'admin') {
                 </a>
               </li>
             </ul>
-            <!--end::Sidebar Menu-->
-          </nav>
+            </nav>
         </div>
-        <!--end::Sidebar Wrapper-->
-      </aside>
-      <!--end::Sidebar-->
-      <!--begin::App Main-->
+        </aside>
       <?php
       require_once "route.php";
       ?>
-      <!--end::App Main-->
-      <!--begin::Footer-->
       <footer class="app-footer bg-black" data-bs-theme="dark">
         <strong>
           Copyright &copy;2025&nbsp;
           <a href="#" class="text-decoration-none">SIAKADEMIKA</a>.
         </strong>
-        <!--end::Copyright-->
-      </footer>
-      <!--end::Footer-->
-    </div>
-    <!--end::App Wrapper-->
-    <!--begin::Script-->
-    <!--begin::Third Party Plugin(OverlayScrollbars)-->
+        </footer>
+      </div>
     <script
       src="https://cdn.jsdelivr.net/npm/overlayscrollbars@2.11.0/browser/overlayscrollbars.browser.es6.min.js"
       crossorigin="anonymous"
     ></script>
-    <!--end::Third Party Plugin(OverlayScrollbars)--><!--begin::Required Plugin(popperjs for Bootstrap 5)-->
     <script
       src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.11.8/dist/umd/popper.min.js"
       crossorigin="anonymous"
     ></script>
-    <!--end::Required Plugin(popperjs for Bootstrap 5)--><!--begin::Required Plugin(Bootstrap 5)-->
     <script
       src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.7/dist/js/bootstrap.min.js"
       crossorigin="anonymous"
     ></script>
-    <!--end::Required Plugin(Bootstrap 5)--><!--begin::Required Plugin(AdminLTE)-->
     <script src="../assets/js/adminlte.js"></script>
-    <!--end::Required Plugin(AdminLTE)--><!--begin::OverlayScrollbars Configure-->
-</body>
-  <!--end::Body-->
-</html>
+    </body>
+  </html>
