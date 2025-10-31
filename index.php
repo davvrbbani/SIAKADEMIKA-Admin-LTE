@@ -37,8 +37,8 @@
                       <label class="form-label">Please choose a role</label>
                       <select class="form-select" name="Role" required>
                         <option value="">-- Choose Role --</option>
-                        <option value="L">Mahasiswa</option>
-                        <option value="P">Dosen</option>
+                        <option value="mahasiswa">Mahasiswa</option>
+                        <option value="dosen">Dosen</option>
                       </select>
                     </div>
                     <button type="submit" class="btn btn-primary w-100 fw-bold mt-3" name="register">Register</button>

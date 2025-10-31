@@ -1,5 +1,4 @@
 <?php
-session_start();
 require_once 'config.php';
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
@@ -34,7 +33,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $username = trim($_POST['username']);
         $email    = trim($_POST['email']);
         $password = password_hash($_POST['password'], PASSWORD_DEFAULT);
-        $role     = 'mahasiswa'; // default role
+        $role     = trim($_POST['Role']);
 
         // Cek apakah username/email sudah dipakai
         $check = $pdo->prepare("SELECT id FROM users WHERE username = :u OR email = :e");
@@ -43,12 +42,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             echo "<script>alert('Username atau email sudah digunakan.'); window.location.href='login.php';</script>";
             exit;
         }
+        if (empty($role) || ($role !== 'mahasiswa' && $role !== 'dosen')){
+            echo "<script>alert('Error: Silahkan pilih role yang valid.'); window.location.href='login.php';</script>";
+            exit;
+        }
 
         // Simpan data user baru
         $stmt = $pdo->prepare("INSERT INTO users (username, email, password, role) VALUES (:u, :e, :p, :r)");
         $stmt->execute(['u' => $username, 'e' => $email, 'p' => $password, 'r' => $role]);
 
-        echo "<script>alert('Registrasi berhasil! Silakan login.'); window.location.href='login.php';</script>";
+        echo "<script>alert('Registrasi berhasil! Silakan login.'); window.location.href='index.php';</script>";
         exit;
     }
 }
