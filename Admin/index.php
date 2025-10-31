@@ -260,6 +260,12 @@ $userrole = ucfirst(htmlspecialchars($_SESSION['user_role'], ENT_QUOTES, 'UTF-8'
                   <p>Data Mahasiswa</p>
                 </a>
               </li>
+              <li class="nav-item">
+                <a href="./?p=matakuliah" class="nav-link">
+                  <i class="nav-icon bi bi-book-fill"></i>
+                  <p>Data Matakuliah</p>
+                </a>
+              </li>
             </ul>
             </nav>
         </div>

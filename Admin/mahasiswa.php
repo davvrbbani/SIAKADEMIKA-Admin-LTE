@@ -2,7 +2,7 @@
 require_once "../config.php";
 
 // Query pakai PDO
-$stmt = $pdo->query("SELECT * FROM siakad");
+$stmt = $pdo->query("SELECT * FROM `users` WHERE role = 'mahasiswa'");
 $data = $stmt->fetchAll();
 ?>
 
@@ -50,7 +50,7 @@ $data = $stmt->fetchAll();
                     <a href="./?p=add-mahasiswa" button type="button" class="btn btn-success">Tambah Data</button></a>
                     </div>
                   <table class="table table-stripped table-hover">
-                    <tr><th>No</th><th>NIM</th><th>Nama</th><th>Gender</th><th>Prodi</th><th>Tanggal</th><th>Option</th></tr>
+                    <tr><th>No</th><th>ID</th><th>Nama</th><th>Email</th><th>Prodi</th><th>Tanggal</th><th>Option</th></tr>
                   <?php
                   $n = 1;
                   foreach ($data as $d) {
@@ -61,11 +61,11 @@ $data = $stmt->fetchAll();
                       };
                       echo "<tr>
                               <td>{$n}</td>
-                              <td>{$d['nim']}</td>
-                              <td>{$d['nama']}</td>
-                              <td>{$d['gender']}</td>
+                              <td>{$d['id']}</td>
+                              <td>{$d['username']}</td>
+                              <td>{$d['email']}</td>
                               <td>{$prodi}</td>
-                              <td>{$d['W']}</td>
+                              <td>{$d['created_at']}</td>
                               <td>
                                   <a href='#' class='btn btn-sm btn-info'>Detail</a>
                                   <a href='#' class='btn btn-sm btn-warning'>Edit</a>

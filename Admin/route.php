@@ -11,6 +11,9 @@ switch ($p) {
     case 'mahasiswa':
         include "mahasiswa.php";
         break;
+    case 'matakuliah';
+        include "matakuliah.php";
+        break;
     case 'add-mahasiswa':
         include "add-mahasiswa.php";
         break;

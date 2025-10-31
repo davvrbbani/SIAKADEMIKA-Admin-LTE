@@ -33,6 +33,14 @@
                             <i class="fas fa-eye"></i>
                         </span>
                     </div>
+                    <div class="mb-3">
+                      <label class="form-label">Please choose a role</label>
+                      <select class="form-select" name="Role" required>
+                        <option value="">-- Choose Role --</option>
+                        <option value="L">Mahasiswa</option>
+                        <option value="P">Dosen</option>
+                      </select>
+                    </div>
                     <button type="submit" class="btn btn-primary w-100 fw-bold mt-3" name="register">Register</button>
                 </form>
             </div>
