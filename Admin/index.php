@@ -192,7 +192,7 @@ $userrole = ucfirst(htmlspecialchars($_SESSION['user_role'], ENT_QUOTES, 'UTF-8'
             <li class="nav-item dropdown user-menu">
               <a href="#" class="nav-link dropdown-toggle" data-bs-toggle="dropdown">
                 <img
-                  src="../assets/img/user2-160x160.jpg"
+                  src="../assets/img/Aviators.jpg"
                   class="user-image rounded-circle shadow"
                   alt="User Image"
                 />
@@ -201,7 +201,7 @@ $userrole = ucfirst(htmlspecialchars($_SESSION['user_role'], ENT_QUOTES, 'UTF-8'
               <ul class="dropdown-menu dropdown-menu-lg dropdown-menu-end">
                 <li class="user-header text-bg-primary">
                   <img
-                    src="../assets/img/user2-160x160.jpg"
+                    src="../assets/img/Aviators.jpg"
                     class="rounded-circle shadow"
                     alt="User Image"
                   />
@@ -249,23 +249,91 @@ $userrole = ucfirst(htmlspecialchars($_SESSION['user_role'], ENT_QUOTES, 'UTF-8'
                 </a>
               </li>
               <li class="nav-item">
-                <a href="./?p=dosen" class="nav-link">
-                  <i class="nav-icon bi bi-mortarboard-fill"></i>
-                  <p>Data Dosen</p>
-                </a>
+                  <a href="./?p=dosen" class="nav-link">
+                      <i class="nav-icon bi bi-person-circle"></i>
+                      <p>Profile</p>
+                  </a>
               </li>
-              <li class="nav-item">
-                <a href="./?p=mahasiswa" class="nav-link">
-                  <i class="nav-icon bi bi-person-fill"></i>
-                  <p>Data Mahasiswa</p>
+            <li class="nav-item">
+                <a href="#" class="nav-link">
+                    <i class="nav-icon bi bi-clipboard-data-fill"></i>
+                    <p>
+                        Data-Data
+                        <i class="nav-arrow bi bi-chevron-right"></i>
+                    </p>
                 </a>
-              </li>
-              <li class="nav-item">
-                <a href="./?p=matakuliah" class="nav-link">
-                  <i class="nav-icon bi bi-book-fill"></i>
-                  <p>Data Matakuliah</p>
+                <ul class="nav nav-treeview">
+                    <li class="nav-item">
+                        <a href="./?p=dosen" class="nav-link">
+                            <i class="nav-icon bi bi-mortarboard-fill"></i>
+                            <p>Data Dosen</p>
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a href="./?p=mahasiswa" class="nav-link">
+                            <i class="nav-icon bi bi-person-fill"></i>
+                            <p>Data Mahasiswa</p>
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a href="./?p=matakuliah" class="nav-link">
+                            <i class="nav-icon bi bi-book-fill"></i>
+                            <p>Data Matakuliah</p>
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a href="./?p=kelas" class="nav-link">
+                            <i class="nav-icon bi bi-buildings-fill"></i>
+                            <p>Data Kelas</p>
+                        </a>
+                    </li>
+                </ul>
+            </li> 
+            <li class="nav-item">
+                <a href="#" class="nav-link">
+                    <i class="nav-icon bi bi-building-fill"></i>
+                    <p>
+                        Akademik
+                        <i class="nav-arrow bi bi-chevron-right"></i>
+                    </p>
                 </a>
-              </li>
+                <ul class="nav nav-treeview">
+                    <li class="nav-item">
+                        <a href="./?p=jadwal-kuliah" class="nav-link">
+                            <i class="nav-icon bi bi-calendar3"></i>
+                            <p>Jadwal Kuliah</p>
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a href="./?p=materi-kuliah" class="nav-link">
+                            <i class="nav-icon bi bi-journal-text"></i>
+                            <p>Materi Kuliah</p>
+                        </a>
+                    </li>
+                    </ul>
+                <li class="nav-item">
+                <a href="#" class="nav-link">
+                    <i class="nav-icon bi bi-archive-fill"></i>
+                    <p>
+                        Pelaporan Akademik
+                        <i class="nav-arrow bi bi-chevron-right"></i>
+                    </p>
+                </a>
+                <ul class="nav nav-treeview">
+                    <li class="nav-item">
+                        <a href="./?p=prestasi-mahasiswa" class="nav-link">
+                            <i class="nav-icon bi bi-trophy-fill"></i>
+                            <p>Laporan Prestasi Mahasiswa</p>
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a href="./?p=kritik dan saran" class="nav-link">
+                            <i class="nav-icon bi bi-pencil-square"></i>
+                            <p>Laporan Kritik & Saran</p>
+                        </a>
+                    </li>
+                </ul>
+            </li>
             </ul>
             </nav>
         </div>

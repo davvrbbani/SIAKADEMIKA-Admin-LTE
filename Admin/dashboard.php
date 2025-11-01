@@ -1,32 +1,26 @@
 <?php
 // Langkah 1: Memuat Konfigurasi & Keamanan
-// Path '../config.php' mengasumsikan file config berada satu level di atas folder 'Admin'.
 require_once '../config.php';
-
-// Memastikan hanya user yang sudah login bisa mengakses halaman ini.
-// Fungsi require_login() sudah ada di config.php Anda.
 require_login();
 
 // Langkah 2: Mengambil Data dari Sesi & Database
-// Ambil username dari sesi untuk ditampilkan. Gunakan htmlspecialchars untuk keamanan.
 $username = htmlspecialchars($_SESSION['user_name'], ENT_QUOTES, 'UTF-8');
 
-// Inisialisasi variabel count untuk mencegah error jika query gagal
+// Inisialisasi variabel count
 $jumlah_mahasiswa = 0;
 $jumlah_dosen = 0;
+$jumlah_kelas = 0; // Menambahkan ini untuk widget baru
 
 try {
     // Langkah 3: Eksekusi Query yang Efisien
-    // Satu query untuk mengambil total mahasiswa dan dosen menggunakan GROUP BY.
+    // Mengambil total mahasiswa dan dosen
     $query_count = "SELECT role, COUNT(id) as total 
                     FROM users 
                     WHERE role IN ('mahasiswa', 'dosen') 
                     GROUP BY role";
-    
     $stmt = $pdo->query($query_count);
     $results = $stmt->fetchAll();
 
-    // Loop hasil query dan masukkan ke variabel PHP
     foreach ($results as $row) {
         if ($row['role'] == 'mahasiswa') {
             $jumlah_mahasiswa = $row['total'];
@@ -34,25 +28,26 @@ try {
             $jumlah_dosen = $row['total'];
         }
     }
-} catch (PDOException $e) {
-    // Jika terjadi error pada database, tampilkan pesan (opsional, baik untuk debugging)
-    // die("Error: Tidak dapat mengambil data statistik. " . $e->getMessage());
-    // Untuk production, Anda bisa membiarkannya menampilkan 0.
-}
+    
+    // Asumsi Anda punya tabel 'kelas'. 
+    // Kita abaikan backend, jadi kita set manual saja untuk tampilan.
+    $query_kelas = "SELECT COUNT(id) as total_kelas FROM kelas";
+    $stmt_kelas = $pdo->query($query_kelas);
+    $jumlah_kelas = $stmt_kelas->fetchColumn();
 
+} catch (PDOException $e) {
+    // die("Error: " . $e->getMessage());
+}
 ?>
+
 <main class="app-main">
-    <!--begin::App Content Header-->
     <div class="app-content-header">
         <div class="container-fluid">
             <div class="row">
-                <!-- Kolom Kiri: Judul dan Ucapan Selamat Datang -->
                 <div class="col-sm-6">
-                    <!-- DATA DINAMIS: Menampilkan username dari sesi -->
                     <p class="mb-1 fs-5 text-muted">Hai, Selamat Datang <b><?php echo $username; ?>!</b></p>
                     <h3 class="mb-0">Dashboard Admin</h3>
                 </div>
-                <!-- Kolom Kanan: Breadcrumb -->
                 <div class="col-sm-6">
                     <ol class="breadcrumb float-sm-end">
                         <li class="breadcrumb-item"><a href="?p=dashboard">Home</a></li>
@@ -62,20 +57,14 @@ try {
             </div>
         </div>
     </div>
-    <!--end::App Content Header-->
-
-    <!--begin::App Content-->
     <div class="app-content">
         <div class="container-fluid">
-            <!-- Baris untuk Kartu Statistik -->
+            
             <div class="row">
-
-                <!-- Kartu Statistik: Total Dosen -->
                 <div class="col-lg-4 col-md-6 col-12 mb-4">
-                    <div class="card text-white bg-primary h-100">
+                    <div class="card text-white bg-primary h-100 shadow-sm border-0">
                         <div class="card-body d-flex justify-content-between align-items-center">
                             <div>
-                                <!-- DATA DINAMIS: Menampilkan jumlah dosen -->
                                 <h1 class="card-title text-white mb-1"><?php echo $jumlah_dosen; ?></h1>
                                 <p class="card-text mb-0">Total Dosen</p>
                             </div>
@@ -87,12 +76,10 @@ try {
                     </div>
                 </div>
 
-                <!-- Kartu Statistik: Total Mahasiswa -->
                 <div class="col-lg-4 col-md-6 col-12 mb-4">
-                    <div class="card text-white bg-success h-100">
+                    <div class="card text-white bg-success h-100 shadow-sm border-0">
                         <div class="card-body d-flex justify-content-between align-items-center">
                             <div>
-                                <!-- DATA DINAMIS: Menampilkan jumlah mahasiswa -->
                                 <h1 class="card-title text-white mb-1"><?php echo $jumlah_mahasiswa; ?></h1>
                                 <p class="card-text mb-0">Total Mahasiswa</p>
                             </div>
@@ -104,28 +91,120 @@ try {
                     </div>
                 </div>
 
-                <!-- Anda bisa menambahkan kartu statistik lain di sini -->
-                <!-- Contoh: Kartu Statistik Mata Kuliah -->
                 <div class="col-lg-4 col-md-6 col-12 mb-4">
-                    <div class="card text-white bg-warning h-100">
+                    <div class="card text-white bg-info h-100 shadow-sm border-0">
                         <div class="card-body d-flex justify-content-between align-items-center">
                             <div>
-                                <h1 class="card-title text-white mb-1">...</h1>
-                                <p class="card-text mb-0">Mata Kuliah</p>
+                                <h1 class="card-title text-white mb-1"><?php echo $jumlah_kelas; ?></h1>
+                                <p class="card-text mb-0">Total Kelas</p>
                             </div>
                             <i class="bi bi-book-fill" style="font-size: 4rem; opacity: 0.5;"></i>
                         </div>
-                        <a href="?p=matakuliah" class="card-footer text-white text-decoration-none">
+                        <a href="?p=kelas" class="card-footer text-white text-decoration-none">
                             Lihat Detail <i class="bi bi-arrow-right-circle-fill"></i>
                         </a>
                     </div>
                 </div>
+            </div>
+            <div class="row mb-4">
+                <div class="col-12">
+                    <h4 class="mb-3 text-muted">🚀 Jalan Pintas</h4>
+                </div>
+
+                <div class="col-lg-3 col-md-6 col-12 mb-3">
+                    <a href="#" class="btn btn-lg btn-primary w-100 d-flex align-items-center justify-content-center p-3 shadow-sm">
+                        <i class="bi bi-person-plus-fill me-2"></i> Tambah Mahasiswa
+                    </a>
+                </div>
+
+                <div class="col-lg-3 col-md-6 col-12 mb-3">
+                    <a href="#" class="btn btn-lg btn-outline-primary w-100 d-flex align-items-center justify-content-center p-3">
+                        <i class="bi bi-mortarboard me-2"></i> Tambah Dosen
+                    </a>
+                </div>
+
+                <div class="col-lg-3 col-md-6 col-12 mb-3">
+                    <a href="#" class="btn btn-lg btn-outline-secondary w-100 d-flex align-items-center justify-content-center p-3">
+                        <i class="bi bi-calendar-plus-fill me-2"></i> Atur Jadwal Kuliah
+                    </a>
+                </div>
+
+                <div class="col-lg-3 col-md-6 col-12 mb-3">
+                    <a href="#" class="btn btn-lg btn-outline-secondary w-100 d-flex align-items-center justify-content-center p-3">
+                        <i class="bi bi-trophy-fill me-2"></i> Input Prestasi
+                    </a>
+                </div>
+            </div>
+            <div class="row">
+
+                <div class="col-lg-8">
+                    <div class="card shadow-sm mb-4 border-0">
+                        <div class="card-header bg-white border-0 pt-3">
+                            <h5 class="mb-0"><i class="bi bi-clock-history me-2"></i>Aktivitas Terbaru (Log)</h5>
+                        </div>
+                        <div class="card-body p-0">
+                            <ul class="list-group list-group-flush">
+                                <li class="list-group-item d-flex align-items-center py-3">
+                                    <i class="bi bi-person-plus-fill fs-4 text-success me-3"></i>
+                                    <div>
+                                        <strong>Admin <?php echo $username; ?></strong> baru saja menambahkan mahasiswa <strong>Budi Santoso</strong>.
+                                        <small class="d-block text-muted">2 menit yang lalu</small>
+                                    </div>
+                                </li>
+                                <li class="list-group-item d-flex align-items-center py-3">
+                                    <i class="bi bi-envelope-open-fill fs-4 text-warning me-3"></i>
+                                    <div>
+                                        Mahasiswa <strong>Citra Lestari</strong> mengirim <strong>kritik & saran</strong> baru.
+                                        <small class="d-block text-muted">1 jam yang lalu</small>
+                                    </div>
+                                </li>
+                                <li class="list-group-item d-flex align-items-center py-3">
+                                    <i class="bi bi-person-check-fill fs-4 text-primary me-3"></i>
+                                    <div>
+                                        Data dosen <strong>Dr. Indah</strong> berhasil diperbarui.
+                                        <small class="d-block text-muted">3 jam yang lalu</small>
+                                    </div>
+                                </li>
+                                <li class="list-group-item d-flex align-items-center py-3">
+                                    <i class="bi bi-calendar-event-fill fs-4 text-info me-3"></i>
+                                    <div>
+                                        Jadwal kuliah <strong>Basis Data</strong> telah dipublikasikan.
+                                        <small class="d-block text-muted">1 hari yang lalu</small>
+                                    </div>
+                                </li>
+                            </ul>
+                        </div>
+                        <div class="card-footer bg-white text-center py-3">
+                            <a href="#" class="text-decoration-none text-primary fw-bold">
+                                Lihat Semua Aktivitas <i class="bi bi-arrow-right-short"></i>
+                            </a>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="col-lg-4">
+                    <div class="card shadow-sm mb-4 border-0">
+                        <div class="card-header bg-white border-0 pt-3">
+                            <h5 class="mb-0"><i class="bi bi-clipboard-data-fill me-2"></i>Laporan Cepat</h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="d-flex align-items-center p-3 mb-3 bg-light rounded">
+                                <i class="bi bi-envelope-exclamation-fill fs-2 text-warning me-3"></i>
+                                <div>
+                                    <h4 class="mb-0">3</h4> <span class="text-muted">Kritik & Saran Masuk Hari Ini</span>
+                                </div>
+                            </div>
+                            <div class="d-flex align-items-center p-3 bg-light rounded">
+                                <i class="bi bi-trophy-fill fs-2 text-info me-3"></i>
+                                <div>
+                                    <h4 class="mb-0">8</h4> <span class="text-muted">Prestasi Diinput Bulan Ini</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
 
             </div>
-            <!--end::Row-->
+            </div>
         </div>
-        <!--end::Container-->
-    </div>
-    <!--end::App Content-->
-</main>
-<!--end::App Main-->
+    </main>

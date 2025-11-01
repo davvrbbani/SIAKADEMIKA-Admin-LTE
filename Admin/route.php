@@ -17,7 +17,22 @@ switch ($p) {
     case 'add-mahasiswa':
         include "add-mahasiswa.php";
         break;
-    // Sebaiknya ada halaman default untuk ditampilkan
+    case 'kelas':
+        include "kelas.php";
+        break;
+    case 'jadwal-kuliah':
+        include "jadwalkuliah.php";
+        break;
+    case 'materi-kuliah':
+        include "materikuliah.php";
+        break;
+    case 'prestasi-mahasiswa':
+        include "prestasimahasiswa.php";
+        break;
+    case 'kritik dan saran':
+        include "kritikdansaran.php";
+        break;
+        // Sebaiknya ada halaman default untuk ditampilkan
     default:
         include "dashboard.php";
     break;
