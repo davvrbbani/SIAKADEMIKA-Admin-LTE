@@ -1,6 +1,7 @@
 <?php
 session_start([
     'cookie_httponly' => true,
+    'cookie_secure' => false, isset($_SERVER['HTTPS']),
     'use_strict_mode' => true,
 ]);
 
@@ -28,6 +29,10 @@ function require_login() {
         header("Location: index.php");
         exit;
     }
+}
+
+function is_admin() {
+    return isset($_SESSION['user_role']) && $_SESSION['user_role'] === 'admin';
 }
 
 function redirect_by_role($role) {
