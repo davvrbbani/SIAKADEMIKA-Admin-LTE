@@ -17,6 +17,15 @@ switch ($p) {
     case 'add-mahasiswa':
         include "add-mahasiswa.php";
         break;
+    case 'detail-mahasiswa':
+        include "detailmhs.php";
+        break;
+    case 'edit-mahasiswa':
+        include "editmhs.php";
+        break;
+    case 'hapus-mahasiswa':
+        include "hapusmhs.php";
+        break;
     case 'kelas':
         include "kelas.php";
         break;

@@ -2,8 +2,12 @@
 require_once "../config.php";
 
 // Query pakai PDO
-$stmt = $pdo->query("SELECT * FROM `users` WHERE role = 'mahasiswa'");
-$data = $stmt->fetchAll();
+$usersStmt = $pdo->query("SELECT * FROM `users` WHERE role = 'mahasiswa'");
+$mahasiswaStmt = $pdo->query("SELECT * FROM `mahasiswa`");
+
+// fetch arrays
+$users = $usersStmt->fetchAll(PDO::FETCH_ASSOC);
+$mahasiswaRows = $mahasiswaStmt->fetchAll(PDO::FETCH_ASSOC);
 ?>
 
 <!--begin::App Main-->
@@ -41,47 +45,98 @@ $data = $stmt->fetchAll();
               <div class="col-12">
                 <!--begin::Card-->
                 <div class="card">
-                  <!--begin::Card Header-->
+                  <!-- Card Header -->
                   <div class="card-header">
-                    <!--begin::Card Title-->
-                    <h3 class="card-title">Data Mahasiswa</h3>
-                    <!--end::Card Title-->
-                    <div class="d-flex justify-content-end mb-3">
-                    <a href="./?p=add-mahasiswa" button type="button" class="btn btn-success">Tambah Data</button></a>
-                    </div>
-                  <table class="table table-stripped table-hover">
-                    <tr><th>No</th><th>ID</th><th>Nama</th><th>Email</th><th>Prodi</th><th>Tanggal</th><th>Option</th></tr>
-                  <?php
-                  $n = 1;
-                  foreach ($data as $d) {
-                      $prodi = match($d['prodi']) {
-                          1 => 'INF',
-                          2 => 'ARS',
-                          default => 'Tidak Diketahui'
-                      };
-                      echo "<tr>
-                              <td>{$n}</td>
-                              <td>{$d['id']}</td>
-                              <td>{$d['username']}</td>
-                              <td>{$d['email']}</td>
-                              <td>{$prodi}</td>
-                              <td>{$d['created_at']}</td>
-                              <td>
-                                  <a href='#' class='btn btn-sm btn-info'>Detail</a>
-                                  <a href='#' class='btn btn-sm btn-warning'>Edit</a>
-                                  <a href='#' class='btn btn-sm btn-danger'>Hapus</a>
-                              </td>
-                          </tr>";
-                      $n++;
-                  }
-                  ?>
+                    <div class="d-flex justify-content-between align-items-center flex-wrap">
+                      <h3 class="card-title mb-2 mb-md-0">Data Mahasiswa</h3>
+                      
+                      <div class="d-flex align-items-center gap-2">
+                        <!-- Form Search -->
+                      <div class="position-relative">
+                        <input type="text" id="searchMahasiswa" 
+                              class="form-control form-control-sm me-2" 
+                              placeholder="Cari nama mahasiswa..." autocomplete="off">
+                        <div id="suggestionBox" 
+                            class="list-group position-absolute w-100" 
+                            style="z-index: 1000; display: none;"></div>
+                      </div>
 
-                  </table>
-                    <!--begin::Card Toolbar-->
-                    <div class="card-tools">
-                  <!--end::Card Footer-->
-           <!--end::Card Footer-->
+                        <a href="./?p=mahasiswa" class="btn btn-primary btn-sm ms-2">
+                          <i class="bi bi-arrow-clockwise"></i></a>
+                        <!-- Tombol Tambah -->
+                        <a href="./?p=add-mahasiswa" class="btn btn-success btn-sm ms-2">
+                          <i class="fas fa-plus"></i> Tambah Data
+                        </a>
+                      </div>
+                    </div>
+                  </div>
+
+                  <!-- Card Body -->
+                  <div class="card-body p-0">
+                    <div class="table-responsive">
+                      <table class="table table-striped table-hover mb-0">
+                        <thead class="table-light">
+                          <tr class="text-center">
+                            <th style="width: 5%;">No</th>
+                            <th style="width: 30%;">Nama</th>
+                            <th style="width: 20%;">Semester</th>
+                            <th style="width: 20%;">NIM</th>
+                            <th style="width: 25%;">Opsi</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          <?php
+                          $n = 1;
+                          $mahasiswaMap = [];
+                          foreach ($mahasiswaRows as $mr) {
+                              $key = $mr['user_id'] ?? $mr['id'] ?? null;
+                              if ($key) $mahasiswaMap[$key] = $mr;
+                          }
+
+                          // Filter jika ada pencarian
+                          $keyword = isset($_GET['keyword']) ? strtolower(trim($_GET['keyword'])) : '';
+
+                          foreach ($users as $d) {
+                              $userId = $d['id'] ?? null;
+                              $mapRow = $userId && isset($mahasiswaMap[$userId]) ? $mahasiswaMap[$userId] : null;
+
+                              $semester = $mapRow['semester'] ?? 'N/A';
+                              $nama_lengkap = $d['nama_lengkap'] ?? ($mapRow['nama_lengkap'] ?? '');
+                              $nim = $mapRow['NIM'] ?? '';
+
+                              // filter by keyword
+                              if ($keyword && strpos(strtolower($nama_lengkap), $keyword) === false) continue;
+
+                              echo "
+                              <tr class='text-center'>
+                                <td>{$n}</td>
+                                <td class='text-start'>".htmlspecialchars($nama_lengkap)."</td>
+                                <td>".htmlspecialchars($semester)."</td>
+                                <td>".htmlspecialchars($nim)."</td>
+                                <td>
+                                  <div class='btn-group btn-group-sm' role='group'>
+                                    <a href='?p=detail-mahasiswa&id={$userId}' class='btn btn-info'>
+                                      <i class='fas fa-eye'></i> Detail
+                                    </a>
+                                    <a href='?p=edit-mahasiswa&id={$userId}' class='btn btn-warning text-white'>
+                                      <i class='fas fa-edit'></i> Edit
+                                    </a>
+                                    <a href='?p=hapus-mahasiswa&id={$userId}' class='btn btn-danger'
+                                      onclick=\"return confirm('Yakin mau hapus data ini?')\">
+                                      <i class='fas fa-trash'></i> Hapus
+                                    </a>
+                                  </div>
+                                </td>
+                              </tr>";
+                              $n++;
+                          }
+                          ?>
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
                 </div>
+
                 <!--end::Card-->
               </div>
               <!--end::Col-->
@@ -91,5 +146,92 @@ $data = $stmt->fetchAll();
           <!--end::Container-->
         </div>
         <!--end::App Content-->
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<script>
+$(document).ready(function() {
+  $('#searchMahasiswa').on('keyup', function() {
+    let query = $(this).val().trim();
+    if (query.length > 1) {
+      $.ajax({
+        url: 'ajax/search_mahasiswa.php', // sesuaikan path kalau perlu
+        method: 'POST',
+        data: {query: query},
+        success: function(data) {
+          $('#suggestionBox').html(data).show();
+        },
+        error: function(xhr) {
+          console.log('Error:', xhr.responseText);
+        }
+      });
+    } else {
+      $('#suggestionBox').hide();
+    }
+  });
+
+  $(document).on('click', '.suggestion-item', function() {
+    $('#searchMahasiswa').val($(this).text());
+    $('#suggestionBox').hide();
+  });
+
+  $(document).click(function(e) {
+    if (!$(e.target).closest('#searchMahasiswa, #suggestionBox').length) {
+      $('#suggestionBox').hide();
+    }
+  
+  });
+
+$(document).on('click', '.suggestion-item', function(e) {
+  e.preventDefault();
+
+  const nama = $(this).attr('data-name') || $(this).text().trim();
+  console.log('Klik nama:', nama); // DEBUG
+
+  $('#searchMahasiswa').val(nama);
+  $('#suggestionBox').hide();
+
+  // AJAX panggil detail mahasiswa
+  $.ajax({
+    url: 'ajax/search_mahasiswa.php',
+    method: 'POST',
+    data: { nama: nama },
+    dataType: 'json',
+    success: function(res) {
+      console.log('Respon:', res); // DEBUG
+
+      if (res && res.nama_lengkap) {
+        const row = `
+          <tr class="text-center">
+            <td>1</td>
+            <td class="text-start">${res.nama_lengkap}</td>
+            <td>${res.semester ?? 'N/A'}</td>
+            <td>${res.NIM ?? ''}</td>
+            <td>
+              <div class="btn-group btn-group-sm" role="group">
+                <a href='?p=detail-mahasiswa&id=${res.id}' class='btn btn-info'>
+                  <i class='fas fa-eye'></i> Detail
+                </a>
+                <a href='?p=edit-mahasiswa&id=${res.id}' class='btn btn-warning text-white'>
+                  <i class='fas fa-edit'></i> Edit
+                </a>
+                <a href='?p=hapus-mahasiswa&id=${res.id}' class='btn btn-danger'
+                  onclick="return confirm('Yakin mau hapus data ini?')">
+                  <i class='fas fa-trash'></i> Hapus
+                </a>
+              </div>
+            </td>
+          </tr>`;
+        $('table tbody').html(row);
+      } else {
+        $('table tbody').html('<tr><td colspan="5" class="text-center text-muted">Data tidak ditemukan</td></tr>');
+      }
+    },
+    error: function(xhr) {
+      console.error('AJAX Error:', xhr.responseText);
+    }
+  });
+});
+});
+</script>
+        <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
       </main>
       <!--end::App Main-->
