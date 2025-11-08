@@ -19,7 +19,7 @@ $mahasiswaRows = $mahasiswaStmt->fetchAll(PDO::FETCH_ASSOC);
             <!--begin::Row-->
             <div class="row">
               <!--begin::Col-->
-              <div class="col-sm-6"><h3 class="mb-0">Dashboard Admin</h3></div>
+              <div class="col-sm-6"><h3 class="mb-0">Data Mahasiswa</h3></div>
               <!--end::Col-->
               <!--begin::Col-->
               <div class="col-sm-6">
@@ -115,14 +115,15 @@ $mahasiswaRows = $mahasiswaStmt->fetchAll(PDO::FETCH_ASSOC);
                                 <td>".htmlspecialchars($nim)."</td>
                                 <td>
                                   <div class='btn-group btn-group-sm' role='group'>
-                                    <a href='?p=detail-mahasiswa&id={$userId}' class='btn btn-info'>
+                                    <a href='./?p=detail-mahasiswa&id={$mapRow["id"]}' class='btn btn-info'>
                                       <i class='fas fa-eye'></i> Detail
                                     </a>
-                                    <a href='?p=edit-mahasiswa&id={$userId}' class='btn btn-warning text-white'>
+                                    <a href='./?p=edit-mahasiswa&id={$mapRow["id"]}' class='btn btn-warning text-white'>
                                       <i class='fas fa-edit'></i> Edit
                                     </a>
-                                    <a href='?p=hapus-mahasiswa&id={$userId}' class='btn btn-danger'
-                                      onclick=\"return confirm('Yakin mau hapus data ini?')\">
+                                    <a href='./?p=hapus-mahasiswa&id={$mapRow["id"]}' 
+                                      class='btn btn-danger btn-sm' 
+                                      onclick=\"return confirm('⚠️ Yakin mau hapus data mahasiswa ini? Data akan hilang permanen.');\">
                                       <i class='fas fa-trash'></i> Hapus
                                     </a>
                                   </div>
