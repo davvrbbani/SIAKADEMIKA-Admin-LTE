@@ -128,7 +128,7 @@ require_once 'config/student_identity.php';
                 <!--end::User Image-->
                 <!--begin::Menu Footer-->
                 <li class="user-footer">
-                  <a href="#" class="btn btn-default btn-flat">Profile</a>
+                  <a href="./?p=profile" class="btn btn-default btn-flat">Profile</a>
                   <a href="../logout.php" class="btn btn-default btn-flat float-end">Sign out</a>
                 </li>
                 <!--end::Menu Footer-->
