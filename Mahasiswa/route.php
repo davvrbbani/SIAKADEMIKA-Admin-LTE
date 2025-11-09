@@ -26,6 +26,9 @@ switch ($p) {
     case 'forum-balasan':
         include "postingan&balasankritiksaran.php";
         break;
+    case 'profile':
+        include "profile.php";
+        break;
 
 
 
