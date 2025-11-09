@@ -128,7 +128,7 @@ SELECT
                                     <i class="fas fa-trash"></i> Hapus
                                 </a>
                             </div>
-</div>
+                    </div>
                 <!--end::Card-->
               </div>
               <!--end::Col-->

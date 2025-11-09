@@ -321,18 +321,19 @@ $userrole = ucfirst(htmlspecialchars($_SESSION['user_role'], ENT_QUOTES, 'UTF-8'
                 </a>
                 <ul class="nav nav-treeview">
                     <li class="nav-item">
-                        <a href="./?p=prestasi-mahasiswa" class="nav-link">
+                        <a href="./?p=manage-prestasi" class="nav-link">
                             <i class="nav-icon bi bi-trophy-fill"></i>
                             <p>Laporan Prestasi Mahasiswa</p>
                         </a>
                     </li>
                     <li class="nav-item">
-                        <a href="./?p=kritik dan saran" class="nav-link">
+                        <a href="./?p=manage-kritik" class="nav-link">
                             <i class="nav-icon bi bi-pencil-square"></i>
                             <p>Laporan Kritik & Saran</p>
                         </a>
                     </li>
                 </ul>
+         </li>
             </li>
             </ul>
             </nav>

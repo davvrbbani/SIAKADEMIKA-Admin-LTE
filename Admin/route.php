@@ -81,13 +81,52 @@ switch ($p) {
         include "jadwalkuliah/hapusjadwal.php";
         break;
     case 'materi-kuliah':
-        include "materikuliah.php";
+        include "datamaterikuliah/manage-materi.php";
         break;
-    case 'prestasi-mahasiswa':
-        include "prestasimahasiswa.php";
+    case 'add-materi':
+        include "datamaterikuliah/add-materi-admin.php";
         break;
-    case 'kritik dan saran':
-        include "kritikdansaran.php";
+    case 'edit-materi':
+        include "datamaterikuliah/edit-materi.php";
+        break;
+    case 'detail-materi':
+        include "datamaterikuliah/detail-materi.php";
+        break;
+    case 'hapus-materi':
+        include "datamaterikuliah/hapus-materi.php";
+        break;
+    case 'detail-materi':
+        include "datamaterikuliah/detail-materi.php";
+        break;
+    case 'manage-prestasi':
+        include "dataprestasi/prestasimahasiswa.php";
+        break;
+    case 'detail-prestasi':
+        include "dataprestasi/detailprestasi.php";
+        break;
+    case 'edit-prestasi':
+        include "dataprestasi/editprestasi.php";
+        break;
+    case 'add-prestasi':
+        include "dataprestasi/addprestasi.php";
+        break;
+    case 'hapus-prestasi':
+        include "dataprestasi/hapusprestasi.php";
+        break;
+    case 'manage-kritik':
+        include "datakritik&saran/forumkritik&saran.php";
+        break;
+    case 'detail-kritik-admin':
+        include "datakritik&saran/detailkritik.php";
+        break;
+    case 'edit-kritik-admin':
+        include "datakritik&saran/editkritik.php";
+        break;
+    case 'add-kritik-admin':
+        include "datakritik&saran/addkritik.php";
+        break;
+    case 'hapus-kritik':
+        include "datakritik&saran/hapuskritik.php";
         break;
         // Sebaiknya ada halaman default untuk ditampilkan
     default:
