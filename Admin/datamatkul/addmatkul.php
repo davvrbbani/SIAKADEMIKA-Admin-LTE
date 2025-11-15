@@ -26,7 +26,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $insertMatkul->execute([$kode_mk, $nama_mk, $sks]);
             
             $pdo->commit();
-
+            $admin_id = $_SESSION['user_id']; // Ambil ID admin yang login
+            $pesan_log = "menambahkan Matakuliah baru: $nama_mk (Kode Matkul: $kode_mk)";
+            log_activity($pdo, $admin_id, $pesan_log);
             echo "<script>
                     alert('✅ Data mata kuliah berhasil ditambahkan!'); 
                     window.location.href='./?p=matakuliah';

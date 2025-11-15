@@ -50,7 +50,8 @@ try {
     <div class="app-content-header">
         <div class="container-fluid">
             <div class="row">
-                <div class="col-sm-6"><h3 class="mb-0">Semua Aktivitas Log</h3></div>
+                <div class="col-sm-6"><h3 class="mb-0"><i class="bi bi-clock-history me-2">Semua Aktivitas Log</i></h3>
+            </div>
                 <div class="col-sm-6">
                     <ol class="breadcrumb float-sm-end">
                         <li class="breadcrumb-item"><a href="?p=dashboard">Home</a></li>

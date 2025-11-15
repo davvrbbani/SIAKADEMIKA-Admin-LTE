@@ -1,5 +1,6 @@
 <?php
 require_once "../config.php";
+require_login(); // <-- 1. DITAMBAHKAN UNTUK KEAMANAN
 
 $error_message = ''; // 1. Siapkan variabel error
 
@@ -53,6 +54,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
             $pdo->commit();
 
+            // ================ 2. INI KODE LOG-NYA ================
+            $admin_id = $_SESSION['user_id']; // Ambil ID admin yang login
+            $pesan_log = "menambahkan mahasiswa baru: $nama_lengkap (NIM: $nim)";
+            log_activity($pdo, $admin_id, $pesan_log);
+            // ======================================================
+            
             echo "<script>
                     alert('✅ Data mahasiswa berhasil ditambahkan!'); 
                     window.location.href='./?p=mahasiswa';

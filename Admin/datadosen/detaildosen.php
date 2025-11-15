@@ -43,6 +43,7 @@ try {
                     </div>
                 </div>
             </div>
+
         <div class="app-content">
             <div class="container-fluid">
                 <div class="row">
@@ -50,6 +51,8 @@ try {
                         <div class="card shadow-sm">
                             <div class="card-header bg-primary text-white">
                                 <h4 class="mb-0"><i class="fas fa-user-tie me-2"></i> Detail Dosen</h4>
+                            </div>
+                            </div>
                             </div>
                             <div class="card-body">
                                 <table class="table table-bordered">

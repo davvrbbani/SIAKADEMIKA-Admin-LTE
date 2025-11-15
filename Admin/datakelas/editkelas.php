@@ -48,7 +48,9 @@ try {
                 $updateKelas->execute([$kelas, $angkatan, $id]);
                 
                 $pdo->commit();
-
+                $admin_id = $_SESSION['user_id']; // Ambil ID admin yang login
+                $pesan_log = "Memperbarui Data Kelas: $kelas (Angkatan: $angkatan)";
+                log_activity($pdo, $admin_id, $pesan_log);
                 // SUKSES: Alert dan redirect
                 echo "
                 <script>

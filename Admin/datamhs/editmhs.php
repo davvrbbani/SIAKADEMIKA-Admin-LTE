@@ -1,5 +1,6 @@
 <?php
 require_once "../config.php";
+require_login(); // <-- 1. DITAMBAHKAN UNTUK KEAMANAN
 
 // Ambil ID mahasiswa dari URL
 $id = isset($_GET['id']) ? intval($_GET['id']) : 0;
@@ -54,12 +55,13 @@ try {
             // Update tabel mahasiswa
             $pdo->beginTransaction();
             try {
-          $updateMhs = $pdo->prepare("
-              UPDATE mahasiswa 
-              SET nama_lengkap = ?, NIM = ?, semester = ?, kelas_id = ?
-              WHERE id = ?
-          ");
-          $updateMhs->execute([$nama_lengkap, $nim, $semester, $kelas_id, $id]);
+                $updateMhs = $pdo->prepare("
+                    UPDATE mahasiswa 
+                    SET nama_lengkap = ?, NIM = ?, semester = ?, kelas_id = ?
+                    WHERE id = ?
+                ");
+                $updateMhs->execute([$nama_lengkap, $nim, $semester, $kelas_id, $id]);
+                
                 // Update user
                 $updateUser = $pdo->prepare("
                     UPDATE users 
@@ -70,7 +72,13 @@ try {
 
                 $pdo->commit();
 
-              echo "
+                // ================ 2. INI KODE LOG-NYA ================
+                $admin_id = $_SESSION['user_id']; // Ambil ID admin yang login
+                $pesan_log = "memperbarui data mahasiswa: $nama_lengkap (NIM: $nim)";
+                log_activity($pdo, $admin_id, $pesan_log);
+                // ======================================================
+                
+                echo "
                 <script>alert('Data mahasiswa berhasil diperbarui!');
                     window.location.href = '?p=mahasiswa';
                 </script>";

@@ -5,6 +5,9 @@ $p = isset($_GET['p']) ? $_GET['p'] : '';
 
 // Sekarang variabel $p berisi string "dosen", "mahasiswa", dll.
 switch ($p) {
+    case 'activity':
+        include "activity.php";
+        break;
     case 'dosen':
         include "datadosen/dosen.php";
         break;
@@ -48,7 +51,7 @@ switch ($p) {
         include "datamhs/editmhs.php";
         break;
     case 'hapus-mahasiswa':
-        include "hapusmhs.php";
+        include "datamhs/hapusmhs.php";
         break;
     case 'kelas':
         include "datakelas/kelas.php";

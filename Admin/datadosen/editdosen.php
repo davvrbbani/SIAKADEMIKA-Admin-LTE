@@ -39,6 +39,9 @@ try {
             $stmtDosen->execute([$nama_lengkap, $nidn, $id]);
 
             $pdo->commit();
+            $admin_id = $_SESSION['user_id']; // Ambil ID admin yang login
+            $pesan_log = "memperbarui data Dosen: $nama_lengkap (NIDN: $nidn)";
+            log_activity($pdo, $admin_id, $pesan_log);
             echo "
                 <div class='alert alert-success'>Data dosen berhasil diperbarui!</div>
                 <script>

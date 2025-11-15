@@ -28,7 +28,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $insertKelas->execute([$kelas, $angkatan]);
 
             $pdo->commit();
-
+            $admin_id = $_SESSION['user_id']; // Ambil ID admin yang login
+            $pesan_log = "Menambahkan Kelas baru: $kelas (Angkatan: $angkatan)";
+            log_activity($pdo, $admin_id, $pesan_log);
             echo "<script>
                     alert('✅ Data kelas berhasil ditambahkan!'); 
                     window.location.href='./?p=kelas';

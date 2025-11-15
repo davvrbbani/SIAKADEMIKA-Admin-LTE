@@ -42,6 +42,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $insertDosen->execute([$user_id, $nidn, $nama_lengkap]);
 
             $pdo->commit();
+            // LOG ACTIVITY - TAMBAH DOSEN
+            // ================ 2. INI KODE LOG-NYA ================
+            $admin_id = $_SESSION['user_id']; // Ambil ID admin yang login
+            $pesan_log = "menambahkan dosen baru: $nama_lengkap (NIDN: $nidn)";
+            log_activity($pdo, $admin_id, $pesan_log);
+            // ======================================================
 
             echo "<script>
                     alert('✅ Data dosen berhasil ditambahkan!'); 

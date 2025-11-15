@@ -59,7 +59,10 @@ try {
                 // (Tidak ada update tabel users)
 
                 $pdo->commit();
-
+                $admin_id = $_SESSION['user_id']; // Ambil ID admin yang login
+                $pesan_log = "memperbarui data Matakuliah: $nama_mk (Kode Matkul: $kode_mk)";
+                log_activity($pdo, $admin_id, $pesan_log);
+            
                 // SUKSES: Alert dan redirect
                 echo "
                 <script>
