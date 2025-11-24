@@ -5,21 +5,21 @@ $p = isset($_GET['p']) ? $_GET['p'] : '';
 
 // Sekarang variabel $p berisi string "dosen", "mahasiswa", dll.
 switch ($p) {
-    case 'dosen':
-        include "dosen.php";
+    case 'jadwal':
+        include "jadwal.php";
         break;
-    case 'mahasiswa':
-        include "mahasiswa.php";
+    case 'materi':
+        include "materi.php";
         break;
-    case 'add-mahasiswa':
-        include "add-mahasiswa.php";
+    case 'profile':
+        include "profile.php";
         break;
-    case 'Pegawai':
-        include "Pegawai.php";
+    case 'kritiksaran':
+        include "kritiksaran.php";
         break;
     // Sebaiknya ada halaman default untuk ditampilkan
     default:
-        echo "<main class='app-main'><div class='app-content p-4'><h3>Selamat Darang di Dashboard SIAKAD</h3></div></main>";
+        include "dashboard.php";
         break;
 }
 ?>

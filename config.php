@@ -1,4 +1,7 @@
 <?php
+// SET ZONA WAKTU KE WIB (PENTING!)
+date_default_timezone_set('Asia/Jakarta');
+
 session_start([
     'cookie_httponly' => true,
     'cookie_secure' => false, isset($_SERVER['HTTPS']),
@@ -52,13 +55,13 @@ function redirect_by_role($role) {
     }
     exit;
 }
-// Fungsi untuk format waktu (FIXED VERSION)
+
+// Fungsi untuk format waktu
 function time_elapsed_string($datetime, $full = false) {
     $now = new DateTime;
     $ago = new DateTime($datetime);
     $diff = $now->diff($ago);
 
-    // HITUNG MINGGU TANPA MENGGUNAKAN DYNAMIC PROPERTY
     $weeks = floor($diff->d / 7);
     $days_remaining = $diff->d - ($weeks * 7);
 
@@ -72,7 +75,6 @@ function time_elapsed_string($datetime, $full = false) {
         's' => 'detik',
     );
     
-    // Buat array hasil dengan nilai yang sudah dihitung
     $result = [
         'y' => $diff->y,
         'm' => $diff->m,
@@ -94,19 +96,15 @@ function time_elapsed_string($datetime, $full = false) {
     if (!$full) $string = array_slice($string, 0, 1);
     return $string ? implode(', ', $string) . ' yang lalu' : 'baru saja';
 }
+
 function log_activity($pdo, $user_id, $action_message) {
     try {
         $sql = "INSERT INTO activity_logs (user_id, action_message) VALUES (:user_id, :action_message)";
         $stmt = $pdo->prepare($sql);
-        
         $stmt->bindParam(':user_id', $user_id, PDO::PARAM_INT);
         $stmt->bindParam(':action_message', $action_message, PDO::PARAM_STR);
-        
         $stmt->execute();
-
     } catch (PDOException $e) {
-        // Jika gagal mencatat log, jangan hentikan script utama
-        // Cukup catat errornya di server log (opsional)
         error_log("Gagal mencatat aktivitas: " . $e->getMessage());
     }
 }

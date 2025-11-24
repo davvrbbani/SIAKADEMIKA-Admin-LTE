@@ -313,7 +313,7 @@ $userrole = ucfirst(htmlspecialchars($_SESSION['user_role'], ENT_QUOTES, 'UTF-8'
                     </ul>
                 <li class="nav-item">
                 <a href="#" class="nav-link">
-                    <i class="nav-icon bi bi-activity"></i>
+                    <i class="nav-icon bi bi-journal-bookmark"></i>
                     <p>
                         Pelaporan Akademik
                         <i class="nav-arrow bi bi-chevron-right"></i>
