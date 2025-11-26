@@ -110,17 +110,17 @@ try {
                             <nav>
                                 <ul class="pagination justify-content-center mb-0">
                                     <li class="page-item <?php echo ($page <= 1) ? 'disabled' : ''; ?>">
-                                        <a class="page-link" href="?p=activity-log&page=<?php echo $page - 1; ?>">Previous</a>
+                                        <a class="page-link" href="?p=activity&page=<?php echo $page - 1; ?>">Previous</a>
                                     </li>
 
                                     <?php for ($i = 1; $i <= $total_pages; $i++): ?>
                                         <li class="page-item <?php echo ($i == $page) ? 'active' : ''; ?>">
-                                            <a class="page-link" href="?p=activity-log&page=<?php echo $i; ?>"><?php echo $i; ?></a>
+                                            <a class="page-link" href="?p=activity&page=<?php echo $i; ?>"><?php echo $i; ?></a>
                                         </li>
                                     <?php endfor; ?>
 
                                     <li class="page-item <?php echo ($page >= $total_pages) ? 'disabled' : ''; ?>">
-                                        <a class="page-link" href="?p=activity-log&page=<?php echo $page + 1; ?>">Next</a>
+                                        <a class="page-link" href="?p=activity&page=<?php echo $page + 1; ?>">Next</a>
                                     </li>
                                 </ul>
                             </nav>

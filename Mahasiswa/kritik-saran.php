@@ -1,25 +1,22 @@
 <?php
-// Main config for database connection ($pdo)
-require_once '../config.php';
+// ==============================================================
+// 1. KONFIGURASI & AUTHENTICATION
+// ==============================================================
+require_once "../config.php"; 
+require_once "config/student_identity.php"; // Pastikan path ini benar
 
-// Include student identity logic
-require_once 'config/student_identity.php';
-
-// Pastikan user_id ada
 if (!isset($_SESSION['user_id'])) {
-    die("Sesi tidak valid. Silakan login ulang.");
+    header("Location: ../index.php");
+    exit;
 }
 
-$user_id = $_SESSION['user_id'];
+$user_id_login = $_SESSION['user_id'];
 $kelas_id_mahasiswa = $current_student['kelas_id'] ?? 0;
-$error_message = '';
-$success_message = '';
 
-// --- Ambil data untuk Form (Daftar Dosen yang Mengajar Mahasiswa ini) ---
+// --- AMBIL DAFTAR DOSEN (Untuk Pilihan Kritik Personal) ---
 $dosenList = [];
 if ($kelas_id_mahasiswa > 0) {
     try {
-        // Ambil daftar dosen yang mengajar di kelas mahasiswa ini (dari jadwal)
         $dosenStmt = $pdo->prepare("
             SELECT DISTINCT d.id, d.nama_lengkap 
             FROM dosen d 
@@ -30,297 +27,528 @@ if ($kelas_id_mahasiswa > 0) {
         $dosenStmt->execute(['kelas_id' => $kelas_id_mahasiswa]);
         $dosenList = $dosenStmt->fetchAll(PDO::FETCH_ASSOC);
     } catch (PDOException $e) {
-        $error_message = "Gagal memuat daftar dosen: " . $e->getMessage();
+        // Silent error
     }
 }
 
-// --- LOGIC FOR HANDLING FORM SUBMISSION (CREATE) ---
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['kirim_feedback'])) {
+// ==============================================================
+// 2. LOGIC PHP (CREATE POST & REPLY)
+// ==============================================================
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     
-    // Data umum
-    $judul = trim($_POST['judul']);
-    $isi = trim($_POST['isi']);
-    $tipe_postingan = trim($_POST['tipe_postingan']);
-
-    try {
-        if (empty($judul) || empty($isi)) {
-            throw new Exception("Judul dan Isi tidak boleh kosong.");
-        }
-        
-        // ... (Logika INSERT feedback tetap sama) ...
-        $parent_id = NULL;
-        $is_anonim = 0;
-        $target_dosen_id = NULL;
-        $tipe = 'Publik';
-
-        if ($tipe_postingan === 'Personal') {
-            $tipe = 'Personal';
-            $is_anonim = 1; // Wajib anonim
-            $target_dosen_id = intval($_POST['target_dosen_id']);
-            if ($target_dosen_id <= 0) {
-                throw new Exception("Target Dosen harus dipilih.");
-            }
-        } else {
-            $tipe = 'Publik';
-            $is_anonim = isset($_POST['is_anonim']) ? 1 : 0;
+    // --- BUAT POSTINGAN BARU (PUBLIK ATAU PERSONAL) ---
+    if (isset($_POST['action']) && $_POST['action'] === 'tambah_post') {
+        try {
+            $judul     = trim($_POST['judul']);
+            $isi       = trim($_POST['isi']);
+            $tipe      = $_POST['tipe_postingan']; // 'Publik' atau 'Personal'
+            $foto_path = NULL;
+            
+            // Setting default
             $target_dosen_id = NULL;
+            $is_anonim = isset($_POST['is_anonim']) ? 1 : 0;
+
+            // Jika Personal, set target dosen & paksa anonim (opsional)
+            if ($tipe === 'Personal') {
+                $target_dosen_id = !empty($_POST['target_dosen_id']) ? intval($_POST['target_dosen_id']) : NULL;
+                $is_anonim = 1; // Kritik ke dosen sebaiknya default anonim demi keamanan mahasiswa
+                if (!$target_dosen_id) throw new Exception("Silakan pilih dosen tujuan.");
+            }
+
+            // LOGIKA UPLOAD FOTO
+            if (isset($_FILES['foto_lampiran']) && $_FILES['foto_lampiran']['error'] == 0) {
+                $allowed = ['jpg', 'jpeg', 'png'];
+                $ext = strtolower(pathinfo($_FILES['foto_lampiran']['name'], PATHINFO_EXTENSION));
+                
+                if (!in_array($ext, $allowed)) throw new Exception("Format foto harus JPG atau PNG.");
+                if ($_FILES['foto_lampiran']['size'] > 2 * 1024 * 1024) throw new Exception("Ukuran maksimal 2MB.");
+
+                $target_dir = "../uploads/kritik/";
+                if (!is_dir($target_dir)) mkdir($target_dir, 0777, true);
+
+                $new_filename = "mhs_" . $user_id_login . "_" . time() . "." . $ext;
+                
+                if (move_uploaded_file($_FILES['foto_lampiran']['tmp_name'], $target_dir . $new_filename)) {
+                    $foto_path = "uploads/kritik/" . $new_filename;
+                }
+            }
+            
+            $sql = "INSERT INTO kritik_saran (user_id, tipe, is_anonim, target_dosen_id, judul, isi, foto_lampiran, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, NOW())";
+            $stmt = $pdo->prepare($sql);
+            $stmt->execute([$user_id_login, $tipe, $is_anonim, $target_dosen_id, $judul, $isi, $foto_path]);
+
+            echo "<script>alert('Berhasil dikirim!'); window.location='./?p=kritik-saran';</script>";
+        } catch (Exception $e) {
+            echo "<script>alert('Error: " . addslashes($e->getMessage()) . "');</script>";
         }
+    }
 
-        $sql = "INSERT INTO kritik_saran (parent_id, user_id, tipe, is_anonim, target_dosen_id, judul, isi, created_at) 
-                VALUES (:parent_id, :user_id, :tipe, :is_anonim, :target_dosen_id, :judul, :isi, NOW())";
-        $stmt = $pdo->prepare($sql);
-        $stmt->execute([
-            'parent_id' => $parent_id,
-            'user_id' => $user_id,
-            'tipe' => $tipe,
-            'is_anonim' => $is_anonim,
-            'target_dosen_id' => $target_dosen_id,
-            'judul' => $judul,
-            'isi' => $isi
-        ]);
-        
-        $success_message = "Masukan Anda telah berhasil dikirim!";
+    // --- BALAS POSTINGAN (REPLY) ---
+    if (isset($_POST['action']) && $_POST['action'] === 'balas_post') {
+        try {
+            $parent_id = intval($_POST['parent_id']);
+            $isi       = trim($_POST['isi']);
+            $tipe_asal = $_POST['tipe_asal']; 
+            $is_anonim = isset($_POST['is_anonim_reply']) ? 1 : 0;
+            $foto_path = NULL;
 
-    } catch (Exception $e) {
-        $error_message = $e->getMessage();
+            // LOGIKA UPLOAD FOTO BALASAN
+            if (isset($_FILES['foto_lampiran']) && $_FILES['foto_lampiran']['error'] == 0) {
+                $allowed = ['jpg', 'jpeg', 'png'];
+                $ext = strtolower(pathinfo($_FILES['foto_lampiran']['name'], PATHINFO_EXTENSION));
+                
+                if (!in_array($ext, $allowed)) throw new Exception("Format foto harus JPG/PNG.");
+                
+                $target_dir = "../uploads/kritik/";
+                if (!is_dir($target_dir)) mkdir($target_dir, 0777, true);
+
+                $new_filename = "reply_mhs_" . $user_id_login . "_" . time() . "." . $ext;
+                
+                if (move_uploaded_file($_FILES['foto_lampiran']['tmp_name'], $target_dir . $new_filename)) {
+                    $foto_path = "uploads/kritik/" . $new_filename;
+                }
+            }
+
+            $sql = "INSERT INTO kritik_saran (parent_id, user_id, tipe, is_anonim, isi, foto_lampiran, created_at) VALUES (?, ?, ?, ?, ?, ?, NOW())";
+            $stmt = $pdo->prepare($sql);
+            $stmt->execute([$parent_id, $user_id_login, $tipe_asal, $is_anonim, $isi, $foto_path]);
+
+            echo "<script>alert('Balasan terkirim!'); window.location='./?p=kritik-saran';</script>";
+        } catch (Exception $e) {
+            echo "<script>alert('Error Balas: " . addslashes($e->getMessage()) . "');</script>";
+        }
     }
 }
 
+// ==============================================================
+// 3. QUERY DATA
+// ==============================================================
 
-// --- LOGIC FOR FETCHING DATA UNTUK TAMPILAN ---
-$feedback_history = [];
-$forum_terbaru = []; // <-- Variabel baru untuk widget
+// Helper function display user
+function processUserDisplay($row) {
+    $is_anonim = $row['is_anonim'];
+    $role = $row['role'];
+    
+    $name = $row['username']; 
+    if ($role == 'dosen' && !empty($row['nama_dosen'])) $name = $row['nama_dosen'];
+    if ($role == 'mahasiswa' && !empty($row['nama_mhs'])) $name = $row['nama_mhs'];
 
-try {
-    // 1. Ambil Riwayat Postingan Saya (Query lama, tetap)
-    $stmt_history = $pdo->prepare(
-        "SELECT * FROM kritik_saran 
-         WHERE user_id = :user_id AND parent_id IS NULL 
-         ORDER BY created_at DESC"
-    );
-    $stmt_history->execute(['user_id' => $user_id]);
-    $feedback_history = $stmt_history->fetchAll();
+    $avatar = !empty($row['profile_image']) ? "../" . $row['profile_image'] : "https://ui-avatars.com/api/?name=".urlencode($name)."&background=random";
 
-    // === TAMBAHAN BARU: Ambil Postingan Forum Publik Terbaru ===
-    // (Query ini tidak pakai 'WHERE user_id' karena ini postingan publik)
-    $stmt_forum = $pdo->query(
-        "SELECT id, judul, created_at 
-         FROM kritik_saran 
-         WHERE tipe = 'Publik' AND parent_id IS NULL 
-         ORDER BY created_at DESC 
-         LIMIT 5" // Ambil 5 terbaru
-    );
-    $forum_terbaru = $stmt_forum->fetchAll(PDO::FETCH_ASSOC);
-    // === END TAMBAHAN BARU ===
+    if ($is_anonim == 1) {
+        $name = "Pengguna Anonim";
+        if ($role == 'mahasiswa') $name = "Mahasiswa (Privasi)";
+        if ($role == 'dosen') $name = "Dosen (Anonim)";
+        $avatar = "https://cdn-icons-png.flaticon.com/512/3135/3135715.png"; 
+    }
 
-} catch (PDOException $e) {
-    // Jika gagal ambil data, tampilkan pesan tapi jangan hentikan skrip
-    $error_message = "Gagal mengambil data riwayat/forum: " . $e->getMessage();
+    return ['name' => $name, 'avatar' => $avatar, 'role' => ucfirst($role)];
 }
+
+// A. AMBIL SEMUA BALASAN
+$queryReplies = "
+    SELECT k.*, u.username, u.role, u.profile_image, d.nama_lengkap as nama_dosen, m.nama_lengkap as nama_mhs
+    FROM kritik_saran k
+    JOIN users u ON k.user_id = u.id
+    LEFT JOIN dosen d ON u.id = d.user_id
+    LEFT JOIN mahasiswa m ON u.id = m.user_id
+    WHERE k.parent_id IS NOT NULL
+    ORDER BY k.created_at ASC
+";
+$allReplies = $pdo->query($queryReplies)->fetchAll(PDO::FETCH_ASSOC);
+$repliesGrouped = [];
+foreach ($allReplies as $rep) { $repliesGrouped[$rep['parent_id']][] = $rep; }
+
+// B. FORUM PUBLIK
+$queryForum = "
+    SELECT k.*, u.username, u.role, u.profile_image, d.nama_lengkap as nama_dosen, m.nama_lengkap as nama_mhs
+    FROM kritik_saran k
+    JOIN users u ON k.user_id = u.id
+    LEFT JOIN dosen d ON u.id = d.user_id
+    LEFT JOIN mahasiswa m ON u.id = m.user_id
+    WHERE k.tipe = 'Publik' AND k.parent_id IS NULL
+    ORDER BY k.created_at DESC
+";
+$listForum = $pdo->query($queryForum)->fetchAll(PDO::FETCH_ASSOC);
+
+// C. RIWAYAT PERSONAL (Yang dikirim OLEH mahasiswa ini)
+$queryPersonal = "
+    SELECT k.*, u.username, u.role, u.profile_image, m.nama_lengkap as nama_mhs, d_target.nama_lengkap as target_dosen
+    FROM kritik_saran k
+    JOIN users u ON k.user_id = u.id
+    LEFT JOIN mahasiswa m ON u.id = m.user_id
+    LEFT JOIN dosen d_target ON k.target_dosen_id = d_target.id
+    WHERE k.tipe = 'Personal' AND k.parent_id IS NULL AND k.user_id = ?
+    ORDER BY k.created_at DESC
+";
+$stmtPersonal = $pdo->prepare($queryPersonal);
+$stmtPersonal->execute([$user_id_login]);
+$listPersonal = $stmtPersonal->fetchAll(PDO::FETCH_ASSOC);
 ?>
 
-<main class="app-main">
-    <div class="app-content-header">
-        <div class="container-fluid">
-            <div class="row">
-                <div class="col-sm-6"><h3 class="mb-0">Forum & Kritik Saran</h3></div>
-                <div class="col-sm-6">
-                    <ol class="breadcrumb float-sm-end">
-                        <li class="breadcrumb-item"><a href="./">Home</a></li>
-                        <li class="breadcrumb-item active" aria-current="page">Kritik dan Saran</li>
-                    </ol>
-                </div>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
+
+<style>
+    body { font-family: 'Inter', sans-serif; background-color: #f4f6f9; }
+    
+    /* Nav Tabs */
+    .nav-pills .nav-link {
+        border-radius: 50px; padding: 10px 25px; font-weight: 600; color: #6c757d;
+        background: #fff; border: 1px solid #dee2e6; margin-right: 10px;
+    }
+    .nav-pills .nav-link.active {
+        background-color: #4e73df; color: #fff; border-color: #4e73df;
+        box-shadow: 0 4px 10px rgba(78, 115, 223, 0.3);
+    }
+
+    /* Card Feed */
+    .feed-card {
+        border: none; border-radius: 12px; background: #fff;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.05); margin-bottom: 20px;
+    }
+    .feed-header {
+        padding: 15px 20px; display: flex; align-items: center; border-bottom: 1px solid #f0f0f0;
+    }
+    .user-avatar { width: 40px; height: 40px; border-radius: 50%; object-fit: cover; margin-right: 12px; }
+    .user-info h6 { margin: 0; font-weight: 700; color: #333; font-size: 0.95rem; }
+    .user-info small { color: #888; font-size: 0.8rem; }
+    
+    .role-badge { font-size: 0.7rem; padding: 2px 8px; border-radius: 6px; margin-left: 5px; text-transform: uppercase; font-weight: bold; }
+    .badge-dosen { background-color: #e3f2fd; color: #0d6efd; }
+    .badge-mhs { background-color: #fff3cd; color: #ffc107; }
+    .badge-anon { background-color: #e9ecef; color: #6c757d; }
+
+    .feed-body { padding: 20px; }
+    .post-title { font-size: 1.1rem; font-weight: 700; margin-bottom: 8px; color: #2c3e50; }
+    .post-content { color: #555; line-height: 1.6; }
+    
+    .feed-footer {
+        padding: 10px 20px; background: #f8f9fa; border-top: 1px solid #eee;
+        border-radius: 0 0 12px 12px; display: flex; justify-content: space-between; align-items: center;
+    }
+
+    /* Balasan Style */
+    .reply-section { background-color: #fafafa; border-top: 1px solid #eee; padding: 0 20px; }
+    .reply-item { padding: 15px 0; border-bottom: 1px solid #eee; display: flex; gap: 10px; }
+    .reply-avatar { width: 30px; height: 30px; border-radius: 50%; }
+    .reply-content { background: #fff; padding: 10px 15px; border-radius: 0 12px 12px 12px; border: 1px solid #eee; width: 100%; }
+    
+    .btn-create {
+        background: #4e73df; color: white; border-radius: 50px; padding: 8px 20px; font-weight: 600; border:none;
+        box-shadow: 0 4px 10px rgba(78, 115, 223, 0.3);
+    }
+    .btn-create:hover { background: #2e59d9; color: white; }
+</style>
+
+<div class="app-main">
+<div class="app-content-header mb-4">
+    <div class="container-fluid">
+        <div class="row align-items-center">
+            <div class="col-md-6">
+                <h3 class="mb-0 fw-bold text-dark">Forum & Kritik Saran</h3>
+                <p class="text-muted mb-0 small">Suarakan aspirasi Anda atau berdiskusi di forum publik.</p>
+            </div>
+            <div class="col-md-6 text-end">
+                <button type="button" class="btn btn-create" data-bs-toggle="modal" data-bs-target="#modalPost">
+                    <i class="fas fa-plus me-2"></i> Buat Postingan
+                </button>
             </div>
         </div>
     </div>
+</div>
 
-    <div class="app-content">
-        <div class="container-fluid">
-            <?php if (!empty($success_message)): ?>
-                <div class="alert alert-success alert-dismissible fade show" role="alert">
-                    <?= htmlspecialchars($success_message); ?>
-                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-                </div>
-            <?php endif; ?>
-            <?php if (!empty($error_message)): ?>
-                <div class="alert alert-danger alert-dismissible fade show" role="alert">
-                    <strong>Gagal!</strong> <?= htmlspecialchars($error_message); ?>
-                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-                </div>
-            <?php endif; ?>
+<div class="app-content">
+    <div class="container-fluid">
+        
+        <ul class="nav nav-pills mb-4" id="pills-tab" role="tablist">
+            <li class="nav-item">
+                <button class="nav-link active" id="pills-forum-tab" data-bs-toggle="pill" data-bs-target="#pills-forum" type="button">
+                    <i class="fas fa-users me-2"></i> Forum Publik
+                </button>
+            </li>
+            <li class="nav-item">
+                <button class="nav-link" id="pills-personal-tab" data-bs-toggle="pill" data-bs-target="#pills-personal" type="button">
+                    <i class="fas fa-paper-plane me-2"></i> Riwayat Kritik (Terkirim)
+                </button>
+            </li>
+        </ul>
+
+        <div class="tab-content" id="pills-tabContent">
             
-            <div class="row">
-                <div class="col-md-5">
-                    <div class="card card-primary card-outline">
-                        <div class="card-header p-0 border-bottom-0">
-                            <ul class="nav nav-tabs" id="myTab" role="tablist">
-                                <li class="nav-item" role="presentation">
-                                    <button class="nav-link active" id="publik-tab" data-bs-toggle="tab" data-bs-target="#publik" type="button" role="tab" aria-controls="publik" aria-selected="true">
-                                        <i class="fas fa-bullhorn me-2"></i> Forum Publik
+            <div class="tab-pane fade show active" id="pills-forum">
+                <div class="row justify-content-center">
+                    <div class="col-lg-9">
+                        <?php if(empty($listForum)): ?>
+                            <div class="text-center py-5 text-muted">
+                                <i class="fas fa-comments fa-3x mb-3 opacity-25"></i>
+                                <h5>Belum ada diskusi. Jadilah yang pertama!</h5>
+                            </div>
+                        <?php else: ?>
+                            <?php foreach($listForum as $post): 
+                                $user = processUserDisplay($post);
+                                $postReplies = $repliesGrouped[$post['id']] ?? [];
+                                $countRep = count($postReplies);
+                            ?>
+                            <div class="feed-card">
+                                <div class="feed-header">
+                                    <img src="<?= htmlspecialchars($user['avatar']) ?>" class="user-avatar">
+                                    <div class="user-info">
+                                        <h6>
+                                            <?= htmlspecialchars($user['name']) ?>
+                                            <span class="role-badge <?= $post['is_anonim'] ? 'badge-anon' : ($user['role']=='Dosen'?'badge-dosen':'badge-mhs') ?>">
+                                                <?= $post['is_anonim'] ? 'Anonim' : $user['role'] ?>
+                                            </span>
+                                        </h6>
+                                        <small><?= date('d M Y, H:i', strtotime($post['created_at'])) ?></small>
+                                    </div>
+                                </div>
+                                <div class="feed-body">
+                                    <div class="post-title"><?= htmlspecialchars($post['judul']) ?></div>
+                                    <div class="post-content"><?= nl2br(htmlspecialchars($post['isi'])) ?></div>
+                                    
+                                    <?php if (!empty($post['foto_lampiran']) && file_exists("../" . $post['foto_lampiran'])): ?>
+                                        <div class="mt-3">
+                                            <img src="../<?= htmlspecialchars($post['foto_lampiran']) ?>" class="img-fluid rounded border" style="max-height: 350px;">
+                                        </div>
+                                    <?php endif; ?>
+                                </div>
+                                
+                                <div class="feed-footer">
+                                    <button class="btn btn-sm btn-outline-primary rounded-pill px-3 btn-reply"
+                                        data-id="<?= $post['id'] ?>"
+                                        data-tipe="Publik"
+                                        data-judul="<?= htmlspecialchars($post['judul']) ?>"
+                                        data-bs-toggle="modal" data-bs-target="#modalReply">
+                                        <i class="fas fa-reply me-1"></i> Balas
                                     </button>
-                                </li>
-                                <li class="nav-item" role="presentation">
-                                    <button class="nav-link" id="personal-tab" data-bs-toggle="tab" data-bs-target="#personal" type="button" role="tab" aria-controls="personal" aria-selected="false">
-                                        <i class="fas fa-user-secret me-2"></i> Kritik Personal (Dosen)
+                                    
+                                    <?php if($countRep > 0): ?>
+                                    <button class="btn btn-sm btn-link text-secondary text-decoration-none" type="button" data-bs-toggle="collapse" data-bs-target="#collapseReply<?= $post['id'] ?>">
+                                        <?= $countRep ?> Komentar <i class="fas fa-chevron-down ms-1"></i>
                                     </button>
-                                </li>
-                            </ul>
-                        </div>
-                        <div class="card-body">
-                            <div class="tab-content" id="myTabContent">
-                                <div class="tab-pane fade show active" id="publik" role="tabpanel" aria-labelledby="publik-tab">
-                                    <p class="text-muted">Postingan ini dapat dilihat oleh mahasiswa dan dosen lain.</p>
-                                    <form action="./?p=kritik-saran" method="POST">
-                                        <input type="hidden" name="tipe_postingan" value="Publik">
-                                        <div class="mb-3">
-                                            <label for="judul_publik" class="form-label">Judul Postingan</label>
-                                            <input type="text" class="form-control" id="judul_publik" name="judul" placeholder="Kritik/Saran tentang Fasilitas, Kampus, dll" required>
-                                        </div>
-                                        <div class="mb-3">
-                                            <label for="isi_publik" class="form-label">Isi Pesan</label>
-                                            <textarea class="form-control" id="isi_publik" name="isi" rows="5" required></textarea>
-                                        </div>
-                                        <div class="form-check mb-3">
-                                            <input class="form-check-input" type="checkbox" value="1" id="is_anonim" name="is_anonim">
-                                            <label class="form-check-label" for="is_anonim">
-                                                Kirim sebagai Anonim (Sembunyikan nama saya)
-                                            </label>
-                                        </div>
-                                        <button type="submit" name="kirim_feedback" class="btn btn-primary float-end">
-                                            <i class="bi bi-send"></i> Kirim ke Forum
-                                        </button>
-                                    </form>
+                                    <?php endif; ?>
                                 </div>
 
-                                <div class="tab-pane fade" id="personal" role="tabpanel" aria-labelledby="personal-tab">
-                                    <div class="alert alert-warning">
-                                        <i class="fas fa-shield-alt me-2"></i>
-                                        <strong>Wajib Anonim.</strong> Masukan ini bersifat personal dan privat. Nama Anda tidak akan ditampilkan kepada Dosen.
+                                <?php if($countRep > 0): ?>
+                                <div class="collapse reply-section" id="collapseReply<?= $post['id'] ?>">
+                                    <?php foreach($postReplies as $rep): 
+                                        $repUser = processUserDisplay($rep);
+                                    ?>
+                                    <div class="reply-item">
+                                        <img src="<?= htmlspecialchars($repUser['avatar']) ?>" class="reply-avatar">
+                                        <div class="reply-content">
+                                            <div class="d-flex justify-content-between">
+                                                <strong class="small text-dark"><?= htmlspecialchars($repUser['name']) ?> <span class="text-muted fw-normal small">• <?= $repUser['role'] ?></span></strong>
+                                                <small class="text-muted" style="font-size:0.7rem"><?= date('d/m H:i', strtotime($rep['created_at'])) ?></small>
+                                            </div>
+                                            <div class="small text-secondary mt-1"><?= nl2br(htmlspecialchars($rep['isi'])) ?></div>
+                                            
+                                            <?php if (!empty($rep['foto_lampiran']) && file_exists("../" . $rep['foto_lampiran'])): ?>
+                                                <div class="mt-2"><img src="../<?= htmlspecialchars($rep['foto_lampiran']) ?>" class="img-fluid rounded border" style="max-height: 150px;"></div>
+                                            <?php endif; ?>
+                                        </div>
                                     </div>
-                                    <form action="./?p=kritik-saran" method="POST">
-                                        <input type="hidden" name="tipe_postingan" value="Personal">
-                                        <div class="mb-3">
-                                            <label for="target_dosen_id" class="form-label">Target Dosen</label>
-                                            <select class="form-select" id="target_dosen_id" name="target_dosen_id" required>
-                                                <option value="">-- Pilih Dosen yang Anda Temui di Kelas --</option>
-                                                <?php foreach ($dosenList as $dosen): ?>
-                                                    <option value="<?= $dosen['id']; ?>">
-                                                        <?= htmlspecialchars($dosen['nama_lengkap']); ?>
-                                                    </option>
-                                                <?php endforeach; ?>
-                                                <?php if (empty($dosenList)): ?>
-                                                     <option value="" disabled>Anda belum terdaftar di kelas/jadwal manapun.</option>
-                                                <?php endif; ?>
-                                            </select>
-                                        </div>
-                                        <div class="mb-3">
-                                            <label for="judul_personal" class="form-label">Judul Masukan</label>
-                                            <input type="text" class="form-control" id="judul_personal" name="judul" placeholder="Kritik/Saran tentang metode mengajar, dll" required>
-                                        </div>
-                                        <div class="mb-3">
-                                            <label for="isi_personal" class="form-label">Isi Pesan</label>
-                                            <textarea class="form-control" id="isi_personal" name="isi" rows="5" required></textarea>
-                                        </div>
-                                        <button type="submit" name="kirim_feedback" class="btn btn-primary float-end">
-                                            <i class="bi bi-send"></i> Kirim Personal
-                                        </button>
-                                    </form>
+                                    <?php endforeach; ?>
+                                    <div class="pb-3"></div>
                                 </div>
+                                <?php endif; ?>
                             </div>
-                        </div>
+                            <?php endforeach; ?>
+                        <?php endif; ?>
                     </div>
                 </div>
-
-                <div class="col-md-7">
-                    <div class="card">
-                        <div class="card-header">
-                            <h3 class="card-title">Riwayat Postingan Saya (Utama)</h3>
-                        </div>
-                        <div class="card-body p-0">
-                            <?php if (empty($feedback_history)): ?>
-                                <div class="alert alert-light text-center m-3">
-                                    Anda belum pernah mengirimkan kritik atau saran.
-                                </div>
-                            <?php else: ?>
-                                <table class="table table-striped">
-                                    <thead>
-                                        <tr>
-                                            <th>Judul Postingan</th>
-                                            <th class="text-center">Tipe</th>
-                                            <th class="text-center">Status</th>
-                                            <th class="text-center">Tanggal</th>
-                                            <th class="text-center">Aksi</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        <?php foreach ($feedback_history as $item): ?>
-                                            <tr>
-                                                <td>
-                                                    <strong><?= htmlspecialchars($item['judul']); ?></strong>
-                                                    <p class="text-muted small mb-0"><?= nl2br(htmlspecialchars(substr($item['isi'], 0, 100))); ?>...</p>
-                                                </td>
-                                                <td class="text-center align-middle">
-                                                    <?php if ($item['tipe'] == 'Publik'): ?>
-                                                        <span class="badge bg-success">Publik</span>
-                                                    <?php else: ?>
-                                                        <span class="badge bg-warning text-dark">Personal</span>
-                                                    <?php endif; ?>
-                                                </td>
-                                                <td class="text-center align-middle">
-                                                    <?php if ($item['is_anonim'] == 1): ?>
-                                                        <span class="badge bg-secondary">Anonim</span>
-                                                    <?php else: ?>
-                                                        <span class="badge bg-info">Publik</span>
-                                                    <?php endif; ?>
-                                                </td>
-                                                <td class="text-center align-middle small"><?= date('d M Y', strtotime($item['created_at'])); ?></td>
-                                                <td class="text-center align-middle">
-                                                    <a href="./?p=lihat-postingan&id=<?= $item['id']; ?>" class="btn btn-sm btn-primary">
-                                                        Lihat
-                                                    </a>
-                                                </td>
-                                            </tr>
-                                        <?php endforeach; ?>
-                                    </tbody>
-                                </table>
-                            <?php endif; ?>
-                        </div>
-                    </div>
-
-                    <div class="card mt-4"> <div class="card-header bg-light">
-                            <h3 class="card-title">Forum Publik Terbaru</h3>
-                        </div>
-                        <div class="card-body">
-                            <?php if (empty($forum_terbaru)): ?>
-                                <p class="text-muted">Belum ada postingan di forum publik.</p>
-                            <?php else: ?>
-                                <ul class="list-group list-group-flush">
-                                    <?php foreach ($forum_terbaru as $post): ?>
-                                    <li class="list-group-item d-flex justify-content-between align-items-center px-0">
-                                        <div>
-                                            <a href="./?p=lihat-postingan&id=<?= $post['id']; ?>" class="fw-bold text-decoration-none">
-                                                <?= htmlspecialchars($post['judul']); ?>
-                                            </a>
-                                            <small class="d-block text-muted">
-                                                <?= date('d M Y', strtotime($post['created_at'])); ?>
-                                            </small>
-                                        </div>
-                                        <a href="./?p=lihat-postingan&id=<?= $post['id']; ?>" class="btn btn-sm btn-outline-primary">
-                                            Lihat
-                                        </a>
-                                    </li>
-                                    <?php endforeach; ?>
-                                </ul>
-                            <?php endif; ?>
-                        </div>
-                        <div class="card-footer text-center">
-                            <a href="./?p=lihat-postingan" class="btn btn-primary">
-                                <i class="fas fa-comments me-2"></i> Lihat Semua Forum
-                            </a>
-                        </div>
-                    </div>
-                    </div>
             </div>
+
+            <div class="tab-pane fade" id="pills-personal">
+                <div class="row justify-content-center">
+                    <div class="col-lg-9">
+                        <div class="alert alert-warning border-0 shadow-sm mb-4">
+                            <i class="bi bi-exclamation-triangle-fill"></i>
+                            <strong>Harap Mengisi Dengan Benar</strong> Pesan personal yang Anda kirim bisa dibaca oleh Dosen yang dituju dan Admin (untuk monitoring).
+                        </div>
+
+                        <?php if(empty($listPersonal)): ?>
+                            <div class="text-center py-5 text-muted">
+                                <i class="fas fa-paper-plane fa-3x mb-3 opacity-25"></i>
+                                <h5>Belum ada riwayat kritik terkirim.</h5>
+                            </div>
+                        <?php else: ?>
+                            <?php foreach($listPersonal as $msg): 
+                                $user = processUserDisplay($msg);
+                                $postReplies = $repliesGrouped[$msg['id']] ?? [];
+                                $countRep = count($postReplies);
+                            ?>
+                            <div class="feed-card border-start border-4 border-warning">
+                                <div class="feed-header">
+                                    <img src="<?= htmlspecialchars($user['avatar']) ?>" class="user-avatar">
+                                    <div class="user-info">
+                                        <h6>
+                                            Kepada: <?= htmlspecialchars($msg['target_dosen'] ?? 'Dosen') ?>
+                                            <span class="badge bg-warning text-dark ms-1" style="font-size:0.7rem">Personal</span>
+                                        </h6>
+                                        <small>Dikirim: <?= date('d M Y, H:i', strtotime($msg['created_at'])) ?></small>
+                                    </div>
+                                </div>
+                                <div class="feed-body">
+                                    <div class="post-title"><?= htmlspecialchars($msg['judul']) ?></div>
+                                    <div class="post-content"><?= nl2br(htmlspecialchars($msg['isi'])) ?></div>
+                                    <?php if (!empty($msg['foto_lampiran']) && file_exists("../" . $msg['foto_lampiran'])): ?>
+                                        <div class="mt-3"><img src="../<?= htmlspecialchars($msg['foto_lampiran']) ?>" class="img-fluid rounded border" style="max-height: 300px;"></div>
+                                    <?php endif; ?>
+                                </div>
+                                
+                                <?php if($countRep > 0): ?>
+                                <div class="feed-footer justify-content-center">
+                                    <button class="btn btn-sm btn-link text-secondary text-decoration-none w-100" type="button" data-bs-toggle="collapse" data-bs-target="#collapseReply<?= $msg['id'] ?>">
+                                        Lihat <?= $countRep ?> Balasan dari Dosen/Admin <i class="fas fa-chevron-down ms-1"></i>
+                                    </button>
+                                </div>
+                                <div class="collapse reply-section" id="collapseReply<?= $msg['id'] ?>">
+                                    <?php foreach($postReplies as $rep): 
+                                        $repUser = processUserDisplay($rep);
+                                    ?>
+                                    <div class="reply-item">
+                                        <img src="<?= htmlspecialchars($repUser['avatar']) ?>" class="reply-avatar">
+                                        <div class="reply-content">
+                                            <div class="d-flex justify-content-between">
+                                                <strong class="small text-dark"><?= htmlspecialchars($repUser['name']) ?> <span class="text-muted fw-normal">• <?= $repUser['role'] ?></span></strong>
+                                                <small class="text-muted" style="font-size:0.7rem"><?= date('d/m H:i', strtotime($rep['created_at'])) ?></small>
+                                            </div>
+                                            <div class="small text-secondary mt-1"><?= nl2br(htmlspecialchars($rep['isi'])) ?></div>
+                                            <?php if (!empty($rep['foto_lampiran'])): ?><div class="mt-2"><img src="../<?= $rep['foto_lampiran'] ?>" class="img-fluid rounded" style="max-height:150px;"></div><?php endif; ?>
+                                        </div>
+                                    </div>
+                                    <?php endforeach; ?>
+                                    <div class="pb-3"></div>
+                                </div>
+                                <?php else: ?>
+                                    <div class="feed-footer justify-content-center text-muted small">Belum ada balasan.</div>
+                                <?php endif; ?>
+                            </div>
+                            <?php endforeach; ?>
+                        <?php endif; ?>
+                    </div>
+                </div>
+            </div>
+
         </div>
     </div>
-</main>
+</div>
+
+<div class="modal fade" id="modalPost" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow-lg">
+            <form method="POST" enctype="multipart/form-data">
+                <div class="modal-header bg-primary text-white">
+                    <h5 class="modal-title fw-bold"><i class="fas fa-edit me-2"></i>Tulis Aspirasi</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body p-4">
+                    <input type="hidden" name="action" value="tambah_post">
+                    
+                    <div class="mb-3">
+                        <label class="form-label fw-bold small text-muted">TUJUAN KIRIM</label>
+                        <select name="tipe_postingan" id="tipePostingan" class="form-select" required>
+                            <option value="Publik">Forum Publik (Semua Orang)</option>
+                            <option value="Personal">Kritik Personal (Rahasia ke Dosen)</option>
+                        </select>
+                    </div>
+
+                    <div class="mb-3" id="targetDosenWrapper" style="display:none;">
+                        <label class="form-label fw-bold small text-muted">PILIH DOSEN</label>
+                        <select name="target_dosen_id" class="form-select">
+                            <option value="">-- Pilih Dosen Pengajar --</option>
+                            <?php foreach($dosenList as $d): ?>
+                                <option value="<?= $d['id'] ?>"><?= htmlspecialchars($d['nama_lengkap']) ?></option>
+                            <?php endforeach; ?>
+                        </select>
+                        <small class="text-danger" style="font-size:0.75rem">* Nama Anda akan disembunyikan dari Dosen.</small>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label fw-bold small text-muted">JUDUL</label>
+                        <input type="text" name="judul" class="form-control" required>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label fw-bold small text-muted">ISI PESAN</label>
+                        <textarea name="isi" class="form-control" rows="4" required placeholder="Sampaikan dengan sopan..."></textarea>
+                    </div>
+
+                    <!-- <div class="mb-3">
+                        <label class="form-label fw-bold small text-muted">LAMPIRAN FOTO (OPSIONAL)</label>
+                        <input type="file" name="foto_lampiran" class="form-control" accept="image/*">
+                    </div> -->
+
+                    <div class="form-check form-switch p-2 bg-light rounded border" id="anonimWrapper">
+                        <input class="form-check-input ms-1" type="checkbox" name="is_anonim">
+                        <label class="form-check-label fw-bold ms-3">Posting sebagai Anonim</label>
+                    </div>
+                </div>
+                <div class="modal-footer bg-light">
+                    <button type="submit" class="btn btn-primary px-4 fw-bold">Kirim</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="modalReply" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow-lg">
+            <form method="POST" enctype="multipart/form-data">
+                <div class="modal-header bg-success text-white">
+                    <h5 class="modal-title fw-bold"><i class="fas fa-reply me-2"></i>Balas Topik</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body p-4">
+                    <input type="hidden" name="action" value="balas_post">
+                    <input type="hidden" name="parent_id" id="replyParentId">
+                    <input type="hidden" name="tipe_asal" id="replyTipeAsal">
+                    
+                    <div class="alert alert-light border mb-3">
+                        <small class="text-muted">Membalas:</small>
+                        <div class="fw-bold text-dark" id="replyTitleDisplay">-</div>
+                    </div>
+
+                    <div class="mb-3">
+                        <textarea name="isi" class="form-control" rows="3" required placeholder="Tulis balasan..."></textarea>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label fw-bold small text-muted">FOTO (OPSIONAL)</label>
+                        <input type="file" name="foto_lampiran" class="form-control" accept="image/*">
+                    </div>
+                    <div class="form-check form-switch">
+                        <input class="form-check-input" type="checkbox" name="is_anonim_reply">
+                        <label class="form-check-label small">Balas Anonim</label>
+                    </div>
+                </div>
+                <div class="modal-footer bg-light">
+                    <button type="submit" class="btn btn-success px-4 fw-bold">Kirim Balasan</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<script>
+    // Toggle Input Publik vs Personal di Modal
+    $('#tipePostingan').change(function() {
+        if($(this).val() === 'Personal') {
+            $('#targetDosenWrapper').slideDown();
+            $('#anonimWrapper').slideUp(); // Personal selalu anonim
+        } else {
+            $('#targetDosenWrapper').slideUp();
+            $('#anonimWrapper').slideDown();
+        }
+    });
+
+    // Data Modal Reply
+    $(document).on('click', '.btn-reply', function() {
+        $('#replyParentId').val($(this).data('id'));
+        $('#replyTipeAsal').val($(this).data('tipe'));
+        $('#replyTitleDisplay').text($(this).data('judul'));
+    });
+</script>

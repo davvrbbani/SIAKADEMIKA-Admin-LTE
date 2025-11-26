@@ -30,6 +30,22 @@ function getHariIndo($dayInggris) {
 }
 $hari_ini = getHariIndo(date('l'));
 
+// --- HELPER: HITUNG SEMESTER (Sama seperti di jadwal.php) ---
+function hitungSemester($angkatan) {
+    $tahun_sekarang = date('Y');
+    $bulan_sekarang = date('n');
+    
+    $selisih_tahun = $tahun_sekarang - $angkatan;
+    
+    // Jika bulan >= Agustus (8), masuk semester Ganjil (1, 3, 5...)
+    if ($bulan_sekarang >= 8) {
+        $semester = ($selisih_tahun * 2) + 1;
+    } else {
+        $semester = ($selisih_tahun * 2);
+    }
+    return ($semester > 0) ? $semester : 1;
+}
+
 // --- QUERY 1: STATISTIK CARD ---
 // A. Total Kelas yg diajar
 $q1 = $pdo->prepare("SELECT COUNT(DISTINCT kelas_id) FROM jadwal_kuliah WHERE dosen_id = ?");
@@ -65,8 +81,9 @@ $total_mhs = $q4->fetchColumn();
 
 
 // --- QUERY 2: JADWAL HARI INI (REALTIME) ---
+// UPDATE: Tambah k.angkatan di select agar bisa hitung semester
 $qJadwal = $pdo->prepare("
-    SELECT jk.*, mk.nama_mk, mk.kode_mk, mk.sks, k.kelas 
+    SELECT jk.*, mk.nama_mk, mk.kode_mk, mk.sks, k.kelas, k.angkatan 
     FROM jadwal_kuliah jk
     JOIN mata_kuliah mk ON jk.mata_kuliah_id = mk.id
     JOIN kelas k ON jk.kelas_id = k.id
@@ -99,6 +116,7 @@ foreach($chartData as $d) {
 ?>
 
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/4.1.1/animate.min.css"/>
 <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet">
 
 <style>
@@ -155,10 +173,10 @@ foreach($chartData as $d) {
         padding: 15px 0;
         border-bottom: 1px solid #edf2f7;
         display: flex;
-        align-items: flex-start;
+        align-items: center;
     }
     .timeline-item:last-child { border-bottom: none; }
-    .time-col { width: 90px; flex-shrink: 0; font-weight: 700; color: #4e73df; }
+    .time-col { width: 100px; flex-shrink: 0; font-weight: 700; color: #4e73df; }
     .mk-col { flex-grow: 1; }
     .mk-name { font-weight: 700; color: #2d3748; font-size: 1rem; }
     .mk-info { font-size: 0.85rem; color: #718096; margin-top: 3px; }
@@ -246,7 +264,10 @@ foreach($chartData as $d) {
                             </div>
                         <?php else: ?>
                             <div class="mt-2">
-                                <?php foreach($jadwal_hari_ini as $j): ?>
+                                <?php foreach($jadwal_hari_ini as $j): 
+                                    // Hitung Semester
+                                    $smt = hitungSemester($j['angkatan']);
+                                ?>
                                     <div class="timeline-item">
                                         <div class="time-col">
                                             <?= date('H:i', strtotime($j['jam_mulai'])) ?><br>
@@ -255,7 +276,8 @@ foreach($chartData as $d) {
                                         <div class="mk-col">
                                             <div class="mk-name"><?= htmlspecialchars($j['nama_mk']) ?></div>
                                             <div class="mk-info">
-                                                <i class="fas fa-layer-group me-1"></i> Kelas <?= htmlspecialchars($j['kelas']) ?>
+                                                <i class="fas fa-layer-group me-1"></i> 
+                                                Semester <?= $smt ?> - Kelas <?= htmlspecialchars($j['kelas']) ?>
                                                 <span class="mx-1">•</span> 
                                                 <?= $j['sks'] ?> SKS
                                             </div>
@@ -263,25 +285,23 @@ foreach($chartData as $d) {
                                                 <span class="room-badge"><i class="fas fa-map-marker-alt me-1"></i> <?= htmlspecialchars($j['ruangan']) ?></span>
                                             </div>
                                         </div>
+                                        
                                         <div class="ms-2">
                                             <?php 
-                                                $now = date('H:i:s'); // Sekarang sudah WIB karena config.php
+                                                $now = date('H:i:s');
                                                 $start = $j['jam_mulai'];
                                                 $end = $j['jam_selesai'];
 
                                                 if ($now >= $start && $now <= $end) {
-                                                    // Jika sekarang di antara jam mulai & selesai
-                                                    echo '<span class="badge bg-success animate__animated animate__pulse animate__infinite"><i class="fas fa-video me-1"></i> Sedang Berlangsung</span>';
+                                                    echo '<span class="badge bg-success animate__animated animate__pulse animate__infinite"><i class="fas fa-video me-1"></i> Berlangsung</span>';
                                                 } elseif ($now > $end) {
-                                                    // Jika sekarang sudah melewati jam selesai
                                                     echo '<span class="badge bg-secondary text-white border"><i class="fas fa-check me-1"></i> Selesai</span>';
                                                 } else {
-                                                    // Jika sekarang sebelum jam mulai
-                                                    echo '<span class="badge bg-warning text-dark"><i class="fas fa-hourglass-start me-1"></i> Akan Dimulai</span>';
+                                                    echo '<span class="badge bg-warning text-dark"><i class="fas fa-hourglass-start me-1"></i> Segera</span>';
                                                 }
                                             ?>
                                         </div>
-                                </div>
+                                    </div>
                                 <?php endforeach; ?>
                             </div>
                         <?php endif; ?>

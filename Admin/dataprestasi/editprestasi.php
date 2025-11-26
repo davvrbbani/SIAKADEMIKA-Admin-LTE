@@ -1,178 +1,157 @@
 <?php
-require_once "../config.php"; // Sesuaikan path
+require_once "../config.php"; 
 
 $error_message = '';
-// 1. Ambil ID Prestasi dari URL
 $id = isset($_GET['id']) ? intval($_GET['id']) : 0;
-if ($id <= 0) {
-    echo "<script>alert('ID prestasi tidak valid!'); window.location.href='?p=manage-prestasi';</script>";
-    exit;
-}
+if ($id <= 0) { echo "<script>window.location.href='?p=manage-prestasi';</script>"; exit; }
 
-// 2. Siapkan variabel
-$mahasiswa_id = 0;
-$judul_prestasi = '';
-$deskripsi = '';
-$tingkat = '';
-$tanggal_diraih = '';
+// Data Awal
+$mahasiswa_id = 0; $judul_prestasi = ''; $deskripsi = ''; $tingkat = ''; $tanggal_diraih = ''; $foto_lama = '';
 
-// 3. Ambil data master (Mahasiswa & Tingkat)
-$mahasiswaList = [];
+// Load Data Mahasiswa
 try {
     $stmt = $pdo->query("SELECT id, nama_lengkap, nim FROM mahasiswa ORDER BY nama_lengkap ASC");
     $mahasiswaList = $stmt->fetchAll(PDO::FETCH_ASSOC);
-} catch (PDOException $e) {
-    $error_message = "Gagal memuat daftar mahasiswa: " . addslashes($e->getMessage());
-}
+} catch (PDOException $e) { $error_message = $e->getMessage(); }
 $tingkat_options = ['Internal', 'Regional', 'Nasional', 'Internasional'];
 
-// 4. Proses Form Jika di-Submit (POST)
+// PROSES POST
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    // Ambil data dari POST
     $mahasiswa_id = intval($_POST['mahasiswa_id']);
     $judul_prestasi = trim($_POST['judul_prestasi']);
     $deskripsi = trim($_POST['deskripsi']);
     $tingkat = trim($_POST['tingkat']);
     $tanggal_diraih = trim($_POST['tanggal_diraih']);
-    
-    try {
-        if ($mahasiswa_id <= 0 || $judul_prestasi === '' || $tanggal_diraih === '') {
-            throw new Exception("Mahasiswa, Judul Prestasi, dan Tanggal wajib diisi.");
-        }
-        
-        $pdo->beginTransaction();
+    $foto_lama_path = $_POST['foto_lama_path']; // Path lama dari hidden input
 
-        $sql = "UPDATE prestasi_mahasiswa SET
-                    mahasiswa_id = ?, 
-                    judul_prestasi = ?, 
-                    deskripsi = ?, 
-                    tingkat = ?, 
-                    tanggal_diraih = ?
-                WHERE id = ?";
-        $stmt = $pdo->prepare($sql);
-        $stmt->execute([$mahasiswa_id, $judul_prestasi, $deskripsi, $tingkat, $tanggal_diraih, $id]);
+    try {
+        $pdo->beginTransaction();
+        
+        // Logic Upload Foto Baru
+        $foto_path_final = $foto_lama_path; // Default pakai yang lama
+
+        if (isset($_FILES['foto_bukti']) && $_FILES['foto_bukti']['error'] == 0) {
+            $allowed = ['jpg', 'jpeg', 'png', 'pdf'];
+            $ext = strtolower(pathinfo($_FILES['foto_bukti']['name'], PATHINFO_EXTENSION));
+            
+            if (!in_array($ext, $allowed)) throw new Exception("Format file salah.");
+            
+            $target_dir = "../uploads/prestasi/";
+            if (!is_dir($target_dir)) mkdir($target_dir, 0777, true);
+            
+            $new_filename = "prestasi_" . $mahasiswa_id . "_" . time() . "." . $ext;
+            
+            if (move_uploaded_file($_FILES['foto_bukti']['tmp_name'], $target_dir . $new_filename)) {
+                // Hapus foto lama jika ada
+                if (!empty($foto_lama_path) && file_exists("../" . $foto_lama_path)) {
+                    unlink("../" . $foto_lama_path);
+                }
+                $foto_path_final = "uploads/prestasi/" . $new_filename;
+            }
+        }
+
+        $sql = "UPDATE prestasi_mahasiswa SET mahasiswa_id=?, judul_prestasi=?, deskripsi=?, tingkat=?, tanggal_diraih=?, foto_bukti=? WHERE id=?";
+        $pdo->prepare($sql)->execute([$mahasiswa_id, $judul_prestasi, $deskripsi, $tingkat, $tanggal_diraih, $foto_path_final, $id]);
         
         $pdo->commit();
-        echo "<script>
-                alert('✅ Prestasi berhasil diperbarui!'); 
-                window.location.href='./?p=manage-prestasi';
-              </script>";
+        echo "<script>alert('✅ Update berhasil!'); window.location.href='./?p=manage-prestasi';</script>";
         exit;
 
     } catch (Exception $e) {
         $pdo->rollBack();
         $error_message = addslashes($e->getMessage());
     }
-    
 } else {
-    // 5. Jika bukan POST (method GET), ambil data prestasi dari DB
-    try {
-        $stmt = $pdo->prepare("SELECT * FROM prestasi_mahasiswa WHERE id = ?");
-        $stmt->execute([$id]);
-        $prestasi = $stmt->fetch(PDO::FETCH_ASSOC);
-
-        if (!$prestasi) {
-            echo "<script>alert('Data prestasi tidak ditemukan!'); window.location.href='?p=manage-prestasi';</script>";
-            exit;
-        }
-
-        // Isi variabel dari database
-        $mahasiswa_id = $prestasi['mahasiswa_id'];
-        $judul_prestasi = $prestasi['judul_prestasi'];
-        $deskripsi = $prestasi['deskripsi'];
-        $tingkat = $prestasi['tingkat'];
-        $tanggal_diraih = $prestasi['tanggal_diraih'];
-
-    } catch (PDOException $e) {
-        $error_message = "Gagal memuat data prestasi: " . addslashes($e->getMessage());
+    // GET DATA
+    $stmt = $pdo->prepare("SELECT * FROM prestasi_mahasiswa WHERE id = ?");
+    $stmt->execute([$id]);
+    $data = $stmt->fetch(PDO::FETCH_ASSOC);
+    if($data) {
+        $mahasiswa_id = $data['mahasiswa_id'];
+        $judul_prestasi = $data['judul_prestasi'];
+        $deskripsi = $data['deskripsi'];
+        $tingkat = $data['tingkat'];
+        $tanggal_diraih = $data['tanggal_diraih'];
+        $foto_lama = $data['foto_bukti'];
     }
 }
 ?>
 
 <main class="app-main">
     <div class="app-content-header">
-        <div class="container-fluid">
-            <div class="row">
-                <div class="col-sm-6"><h3 class="mb-0">Edit Prestasi</h3></div>
-                <div class="col-sm-6">
-                    <ol class="breadcrumb float-sm-end">
-                        <li class="breadcrumb-item"><a href="./">Home</a></li>
-                        <li class="breadcrumb-item"><a href="?p=manage-prestasi">Manajemen Prestasi</a></li>
-                        <li class="breadcrumb-item active">Edit Prestasi</li>
-                    </ol>
-                </div>
-            </div>
-        </div>
+        <div class="container-fluid"><h3>Edit Prestasi</h3></div>
     </div>
-
     <div class="app-content">
         <div class="container-fluid">
-            <div class="row">
-                <div class="col-12">
+            <div class="card shadow-lg border-0">
+                <div class="card-header bg-warning text-dark"><h4 class="mb-0">Form Edit</h4></div>
+                <div class="card-body">
+                    <?php if($error_message): ?><div class="alert alert-danger"><?= $error_message ?></div><?php endif; ?>
                     
-                    <?php if (!empty($error_message)): ?>
-                        <script>
-                            alert('<?php echo $error_message; ?>');
-                        </script>
-                    <?php endif; ?>
+                    <form method="POST" enctype="multipart/form-data">
+                        <input type="hidden" name="foto_lama_path" value="<?= htmlspecialchars($foto_lama) ?>">
 
-                    <div class="card shadow-lg border-0 rounded-3">
-                        <div class="card-header bg-primary text-white">
-                            <h4 class="mb-0">Form Edit Prestasi</h4>
+                        <div class="mb-3">
+                            <label>Mahasiswa</label>
+                            <select name="mahasiswa_id" class="form-select" required>
+                                <?php foreach ($mahasiswaList as $mhs): ?>
+                                    <option value="<?= $mhs['id'] ?>" <?= ($mahasiswa_id == $mhs['id']) ? 'selected' : '' ?>>
+                                        <?= htmlspecialchars($mhs['nama_lengkap'] . ' (' . $mhs['nim'] . ')') ?>
+                                    </option>
+                                <?php endforeach; ?>
+                            </select>
                         </div>
-                        <div class="card-body">
-                            <form method="POST">
-                                <div class="mb-3">
-                                    <label class="form-label">Mahasiswa</label>
-                                    <select name="mahasiswa_id" class="form-select" required>
-                                        <option value="">-- Pilih Mahasiswa --</option>
-                                        <?php foreach ($mahasiswaList as $mhs): ?>
-                                            <option value="<?= $mhs['id'] ?>" <?= ($mahasiswa_id == $mhs['id']) ? 'selected' : '' ?>>
-                                                <?= htmlspecialchars($mhs['nama_lengkap'] . ' (' . $mhs['nim'] . ')') ?>
-                                            </option>
-                                        <?php endforeach; ?>
-                                    </select>
-                                </div>
 
-                                <div class="mb-3">
-                                    <label class="form-label">Judul Prestasi/Kejuaraan</label>
-                                    <input type="text" name="judul_prestasi" class="form-control" 
-                                           value="<?= htmlspecialchars($judul_prestasi) ?>" required>
-                                </div>
-
-                                <div class="mb-3">
-                                    <label class="form-label">Tingkat</label>
-                                    <select name="tingkat" class="form-select" required>
-                                        <?php foreach ($tingkat_options as $option): ?>
-                                            <option value="<?= $option ?>" <?= ($tingkat == $option) ? 'selected' : '' ?>>
-                                                <?= $option ?>
-                                            </option>
-                                        <?php endforeach; ?>
-                                    </select>
-                                </div>
-
-                                <div class="mb-3">
-                                    <label class="form-label">Tanggal Diraih</label>
-                                    <input type="date" name="tanggal_diraih" class="form-control" 
-                                           value="<?= htmlspecialchars($tanggal_diraih) ?>" required>
-                                </div>
-                                
-                                <div class="mb-3">
-                                    <label class="form-label">Deskripsi (Opsional)</label>
-                                    <textarea name="deskripsi" class="form-control" rows="3"><?= htmlspecialchars($deskripsi) ?></textarea>
-                                </div>
-
-                                <div class="d-flex justify-content-between mt-4">
-                                    <a href="?p=manage-prestasi" class="btn btn-secondary">
-                                        <i class="fas fa-arrow-left"></i> Kembali
-                                    </a>
-                                    <button type="submit" class="btn btn-success">
-                                        <i class="fas fa-save"></i> Simpan Perubahan
-                                    </button>
-                                </div>
-                            </form>
+                        <div class="mb-3">
+                            <label>Judul Prestasi</label>
+                            <input type="text" name="judul_prestasi" class="form-control" value="<?= htmlspecialchars($judul_prestasi) ?>" required>
                         </div>
-                    </div>
+
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label>Tingkat</label>
+                                <select name="tingkat" class="form-select">
+                                    <?php foreach ($tingkat_options as $option): ?>
+                                        <option value="<?= $option ?>" <?= ($tingkat == $option) ? 'selected' : '' ?>><?= $option ?></option>
+                                    <?php endforeach; ?>
+                                </select>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label>Tanggal</label>
+                                <input type="date" name="tanggal_diraih" class="form-control" value="<?= htmlspecialchars($tanggal_diraih) ?>" required>
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label>Foto Bukti</label>
+                            <input type="file" name="foto_bukti" class="form-control">
+                            <small class="text-muted">Biarkan kosong jika tidak ingin mengubah foto.</small>
+                            
+                            <?php if (!empty($foto_lama)): ?>
+                                <div class="mt-2 p-2 border rounded bg-light">
+                                    <small class="d-block mb-1">File Saat Ini:</small>
+                                    <?php $ext = pathinfo($foto_lama, PATHINFO_EXTENSION); ?>
+                                    <?php if (in_array(strtolower($ext), ['jpg', 'jpeg', 'png'])): ?>
+                                        <img src="../<?= htmlspecialchars($foto_lama) ?>" alt="Bukti" style="max-height: 150px; border-radius: 5px;">
+                                    <?php else: ?>
+                                        <a href="../<?= htmlspecialchars($foto_lama) ?>" target="_blank" class="btn btn-sm btn-info text-white">
+                                            <i class="fas fa-file-download"></i> Lihat File (<?= $ext ?>)
+                                        </a>
+                                    <?php endif; ?>
+                                </div>
+                            <?php endif; ?>
+                        </div>
+
+                        <div class="mb-3">
+                            <label>Deskripsi</label>
+                            <textarea name="deskripsi" class="form-control" rows="3"><?= htmlspecialchars($deskripsi) ?></textarea>
+                        </div>
+
+                        <div class="d-flex justify-content-between">
+                            <a href="?p=manage-prestasi" class="btn btn-secondary">Batal</a>
+                            <button type="submit" class="btn btn-success">Update</button>
+                        </div>
+                    </form>
                 </div>
             </div>
         </div>

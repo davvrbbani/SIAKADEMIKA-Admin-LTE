@@ -60,7 +60,7 @@ foreach ($jadwalData as $jadwal) {
         <div class="container-fluid">
             <div class="row">
                 <div class="col-sm-6">
-                    <h3 class="mb-0">Dashboard</h3>
+                    <h3 class="mb-0 fw-bold text-dark">Dashboard</h3>
                 </div>
                 <div class="col-sm-6">
                     <ol class="breadcrumb float-sm-end">
@@ -146,7 +146,7 @@ foreach ($jadwalData as $jadwal) {
                             <div class="card-body">
                                 <div class="d-flex align-items-center">
                                     <div class="flex-grow-1">
-                                        <h6 class="card-title">Jadwal Matkul</h6>
+                                        <h6 class="card-text"><strong>Jadwal Matkul</strong></h6>
                                         <p class="card-text">Lihat jadwal kuliah mingguan</p>
                                     </div>
                                     <div class="icon-wrapper">
@@ -165,7 +165,7 @@ foreach ($jadwalData as $jadwal) {
                             <div class="card-body">
                                 <div class="d-flex align-items-center">
                                     <div class="flex-grow-1">
-                                        <h6 class="card-title">Materi Kuliah</h6>
+                                        <h6 class="card-text"><strong>Materi Kuliah</strong></h6>
                                         <p class="card-text">Download materi perkuliahan</p>
                                     </div>
                                     <div class="icon-wrapper">
@@ -184,7 +184,7 @@ foreach ($jadwalData as $jadwal) {
                             <div class="card-body">
                                 <div class="d-flex align-items-center">
                                     <div class="flex-grow-1">
-                                        <h6 class="card-title">Kejuaraan</h6>
+                                        <h6 class="card-text"><strong>Kejuaraan</strong></h6>
                                         <p class="card-text">Kelola data prestasi Anda</p>
                                     </div>
                                     <div class="icon-wrapper">
@@ -203,7 +203,7 @@ foreach ($jadwalData as $jadwal) {
                             <div class="card-body">
                                 <div class="d-flex align-items-center">
                                     <div class="flex-grow-1">
-                                        <h6 class="card-title">Kritik & Saran</h6>
+                                        <h6 class="card-text"><strong>Kritik & Saran</strong></h6>
                                         <p class="card-text">Kirim masukan untuk kampus</p>
                                     </div>
                                     <div class="icon-wrapper">
@@ -260,11 +260,11 @@ foreach ($jadwalData as $jadwal) {
                                                 <td><?php echo htmlspecialchars($jadwal['ruangan']); ?></td>
                                                 <td>
                                                     <?php if ($isBerlangsung): ?>
-                                                        <span class="badge bg-success">
+                                                        <span class="badge bg-secondary">
                                                             <i class="bi bi-play-circle me-1"></i>Sedang Berlangsung
                                                         </span>
                                                     <?php elseif ($isSelesai): ?>
-                                                        <span class="badge bg-secondary">
+                                                        <span class="badge bg-success">
                                                             <i class="bi bi-check-circle me-1"></i>Selesai
                                                         </span>
                                                     <?php else: ?>
@@ -331,13 +331,13 @@ function updateStatusJadwal(jam, menit, detik) {
         let newRowClass = '';
         
         if (waktuSekarang >= startTimeFull && waktuSekarang <= endTimeFull) {
-            newStatus = '<span class="badge bg-success"><i class="bi bi-play-circle me-1"></i>Sedang Berlangsung</span>';
-            newBadgeClass = 'bg-success';
-            newRowClass = 'table-success';
-        } else if (waktuSekarang > endTimeFull) {
-            newStatus = '<span class="badge bg-secondary"><i class="bi bi-check-circle me-1"></i>Selesai</span>';
+            newStatus = '<span class="badge bg-secondary"><i class="bi bi-play-circle me-1"></i>Sedang Berlangsung</span>';
             newBadgeClass = 'bg-secondary';
             newRowClass = 'table-light';
+        } else if (waktuSekarang > endTimeFull) {
+            newStatus = '<span class="badge bg-success"><i class="bi bi-check-circle me-1"></i>Selesai</span>';
+            newBadgeClass = 'bg-success';
+            newRowClass = 'table-success';
         } else {
             newStatus = '<span class="badge bg-info"><i class="bi bi-clock me-1"></i>Akan Datang</span>';
             newBadgeClass = 'bg-info';

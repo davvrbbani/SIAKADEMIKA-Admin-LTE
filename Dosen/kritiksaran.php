@@ -31,10 +31,32 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $judul     = trim($_POST['judul']);
             $isi       = trim($_POST['isi']);
             $is_anonim = isset($_POST['is_anonim']) ? 1 : 0;
+            $foto_path = NULL;
+
+            // LOGIKA UPLOAD FOTO (POSTINGAN)
+            if (isset($_FILES['foto_lampiran']) && $_FILES['foto_lampiran']['error'] == 0) {
+                $allowed = ['jpg', 'jpeg', 'png'];
+                $filename = $_FILES['foto_lampiran']['name'];
+                $ext = strtolower(pathinfo($filename, PATHINFO_EXTENSION));
+                $size = $_FILES['foto_lampiran']['size'];
+
+                if (!in_array($ext, $allowed)) throw new Exception("Format foto harus JPG atau PNG.");
+                if ($size > 2 * 1024 * 1024) throw new Exception("Ukuran foto maksimal 2MB.");
+
+                $target_dir = "../uploads/kritik/";
+                if (!is_dir($target_dir)) mkdir($target_dir, 0777, true);
+
+                $new_filename = "kritik_" . $user_id_login . "_" . time() . "." . $ext;
+                $target_file = $target_dir . $new_filename;
+
+                if (move_uploaded_file($_FILES['foto_lampiran']['tmp_name'], $target_file)) {
+                    $foto_path = "uploads/kritik/" . $new_filename;
+                }
+            }
             
-            $sql = "INSERT INTO kritik_saran (user_id, tipe, is_anonim, judul, isi, created_at) VALUES (?, 'Publik', ?, ?, ?, NOW())";
+            $sql = "INSERT INTO kritik_saran (user_id, tipe, is_anonim, judul, isi, foto_lampiran, created_at) VALUES (?, 'Publik', ?, ?, ?, ?, NOW())";
             $stmt = $pdo->prepare($sql);
-            $stmt->execute([$user_id_login, $is_anonim, $judul, $isi]);
+            $stmt->execute([$user_id_login, $is_anonim, $judul, $isi, $foto_path]);
 
             echo "<script>alert('Postingan berhasil diterbitkan!'); window.location='./?p=kritiksaran';</script>";
         } catch (Exception $e) {
@@ -42,20 +64,41 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
     }
 
-    // --- BALAS POSTINGAN (REPLY) ---
+    // --- BALAS POSTINGAN (REPLY) DENGAN FOTO ---
     if (isset($_POST['action']) && $_POST['action'] === 'balas_post') {
         try {
             $parent_id = intval($_POST['parent_id']);
             $isi       = trim($_POST['isi']);
-            $tipe_asal = $_POST['tipe_asal']; // Publik / Personal
-            
-            // Dosen membalas (biasanya tidak anonim agar mahasiswa tau itu dosennya, tapi kita kasih opsi default 0)
-            $is_anonim = 0; 
+            $tipe_asal = $_POST['tipe_asal'];
+            $is_anonim = 0; // Dosen balas tidak anonim defaultnya
+            $foto_path = NULL;
 
-            // Insert Balasan (parent_id diisi ID postingan yg dibalas)
-            $sql = "INSERT INTO kritik_saran (parent_id, user_id, tipe, is_anonim, isi, created_at) VALUES (?, ?, ?, ?, ?, NOW())";
+            // LOGIKA UPLOAD FOTO (BALASAN)
+            if (isset($_FILES['foto_lampiran']) && $_FILES['foto_lampiran']['error'] == 0) {
+                $allowed = ['jpg', 'jpeg', 'png'];
+                $filename = $_FILES['foto_lampiran']['name'];
+                $ext = strtolower(pathinfo($filename, PATHINFO_EXTENSION));
+                $size = $_FILES['foto_lampiran']['size'];
+
+                if (!in_array($ext, $allowed)) throw new Exception("Format foto harus JPG atau PNG.");
+                if ($size > 2 * 1024 * 1024) throw new Exception("Ukuran foto maksimal 2MB.");
+
+                $target_dir = "../uploads/kritik/";
+                if (!is_dir($target_dir)) mkdir($target_dir, 0777, true);
+
+                // Nama file unik untuk balasan
+                $new_filename = "reply_dosen_" . $user_id_login . "_" . time() . "." . $ext;
+                $target_file = $target_dir . $new_filename;
+
+                if (move_uploaded_file($_FILES['foto_lampiran']['tmp_name'], $target_file)) {
+                    $foto_path = "uploads/kritik/" . $new_filename;
+                }
+            }
+
+            // Insert Balasan dengan Foto
+            $sql = "INSERT INTO kritik_saran (parent_id, user_id, tipe, is_anonim, isi, foto_lampiran, created_at) VALUES (?, ?, ?, ?, ?, ?, NOW())";
             $stmt = $pdo->prepare($sql);
-            $stmt->execute([$parent_id, $user_id_login, $tipe_asal, $is_anonim, $isi]);
+            $stmt->execute([$parent_id, $user_id_login, $tipe_asal, $is_anonim, $isi, $foto_path]);
 
             echo "<script>alert('Balasan terkirim!'); window.location='./?p=kritiksaran';</script>";
         } catch (Exception $e) {
@@ -68,19 +111,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 // 3. QUERY DATA (READ & GROUPING)
 // ==============================================================
 
-// Helper function untuk display user
 function processUserDisplay($row) {
     $is_anonim = $row['is_anonim'];
     $role = $row['role'];
     
-    // Nama Default
     $name = $row['username']; 
     if ($role == 'dosen' && !empty($row['nama_dosen'])) $name = $row['nama_dosen'];
     if ($role == 'mahasiswa' && !empty($row['nama_mhs'])) $name = $row['nama_mhs'];
 
     $avatar = !empty($row['profile_image']) ? "../" . $row['profile_image'] : "https://ui-avatars.com/api/?name=".urlencode($name)."&background=random";
 
-    // Logic Anonim
     if ($is_anonim == 1) {
         $name = "Pengguna Anonim";
         if ($role == 'mahasiswa') $name = "Mahasiswa (Privasi)";
@@ -91,8 +131,8 @@ function processUserDisplay($row) {
     return ['name' => $name, 'avatar' => $avatar, 'role' => ucfirst($role)];
 }
 
-// A. AMBIL SEMUA BALASAN (REPLIES) DULU
-// Kita ambil semua reply lalu dikelompokkan berdasarkan parent_id nya di PHP biar efisien (Eager Loading manual)
+// AMBIL BALASAN (REPLIES)
+// Tambahkan foto_lampiran di SELECT
 $queryReplies = "
     SELECT k.*, u.username, u.role, u.profile_image, d.nama_lengkap as nama_dosen, m.nama_lengkap as nama_mhs
     FROM kritik_saran k
@@ -105,13 +145,12 @@ $queryReplies = "
 $stmtRep = $pdo->query($queryReplies);
 $allReplies = $stmtRep->fetchAll(PDO::FETCH_ASSOC);
 
-// Grouping Balasan berdasarkan Parent ID
 $repliesGrouped = [];
 foreach ($allReplies as $rep) {
     $repliesGrouped[$rep['parent_id']][] = $rep;
 }
 
-// B. AMBIL POSTINGAN UTAMA (FORUM PUBLIK)
+// AMBIL POSTINGAN UTAMA (FORUM PUBLIK)
 $queryForum = "
     SELECT k.*, u.username, u.role, u.profile_image, d.nama_lengkap as nama_dosen, m.nama_lengkap as nama_mhs
     FROM kritik_saran k
@@ -123,7 +162,7 @@ $queryForum = "
 ";
 $listForum = $pdo->query($queryForum)->fetchAll(PDO::FETCH_ASSOC);
 
-// C. AMBIL POSTINGAN UTAMA (PERSONAL UNTUK DOSEN INI)
+// AMBIL POSTINGAN UTAMA (PERSONAL)
 $queryPersonal = "
     SELECT k.*, u.username, u.role, u.profile_image, m.nama_lengkap as nama_mhs
     FROM kritik_saran k
@@ -145,46 +184,27 @@ $listPersonal = $stmtPersonal->fetchAll(PDO::FETCH_ASSOC);
     
     /* Tabs */
     .nav-pills .nav-link {
-        border-radius: 50px;
-        padding: 10px 25px;
-        font-weight: 600;
-        color: #6c757d;
-        background: #fff;
-        border: 1px solid #dee2e6;
-        margin-right: 10px;
+        border-radius: 50px; padding: 10px 25px; font-weight: 600; color: #6c757d;
+        background: #fff; border: 1px solid #dee2e6; margin-right: 10px;
     }
     .nav-pills .nav-link.active {
-        background-color: #0d6efd;
-        color: #fff;
-        border-color: #0d6efd;
+        background-color: #0d6efd; color: #fff; border-color: #0d6efd;
         box-shadow: 0 4px 10px rgba(13, 110, 253, 0.3);
     }
 
     /* Card Feed */
     .feed-card {
-        border: none;
-        border-radius: 12px;
-        background: #fff;
-        box-shadow: 0 2px 8px rgba(0,0,0,0.05);
-        margin-bottom: 20px;
+        border: none; border-radius: 12px; background: #fff;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.05); margin-bottom: 20px;
     }
-    
     .feed-header {
-        padding: 15px 20px;
-        display: flex;
-        align-items: center;
-        border-bottom: 1px solid #f0f0f0;
+        padding: 15px 20px; display: flex; align-items: center; border-bottom: 1px solid #f0f0f0;
     }
     .user-avatar {
-        width: 40px;
-        height: 40px;
-        border-radius: 50%;
-        object-fit: cover;
-        margin-right: 12px;
+        width: 40px; height: 40px; border-radius: 50%; object-fit: cover; margin-right: 12px;
     }
     .user-info h6 { margin: 0; font-weight: 700; color: #333; font-size: 0.95rem; }
     .user-info small { color: #888; font-size: 0.8rem; }
-    
     .role-badge { font-size: 0.7rem; padding: 2px 8px; border-radius: 6px; margin-left: 5px; text-transform: uppercase; font-weight: bold; }
     .badge-dosen { background-color: #e3f2fd; color: #0d6efd; }
     .badge-mhs { background-color: #fff3cd; color: #ffc107; }
@@ -195,27 +215,13 @@ $listPersonal = $stmtPersonal->fetchAll(PDO::FETCH_ASSOC);
     .post-content { color: #555; line-height: 1.6; }
     
     .feed-footer {
-        padding: 10px 20px;
-        background: #f8f9fa;
-        border-top: 1px solid #eee;
-        border-radius: 0 0 12px 12px;
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
+        padding: 10px 20px; background: #f8f9fa; border-top: 1px solid #eee;
+        border-radius: 0 0 12px 12px; display: flex; justify-content: space-between; align-items: center;
     }
 
     /* Balasan Style */
-    .reply-section {
-        background-color: #fafafa;
-        border-top: 1px solid #eee;
-        padding: 0 20px;
-    }
-    .reply-item {
-        padding: 15px 0;
-        border-bottom: 1px solid #eee;
-        display: flex;
-        gap: 10px;
-    }
+    .reply-section { background-color: #fafafa; border-top: 1px solid #eee; padding: 0 20px; }
+    .reply-item { padding: 15px 0; border-bottom: 1px solid #eee; display: flex; gap: 10px; }
     .reply-item:last-child { border-bottom: none; }
     .reply-avatar { width: 30px; height: 30px; border-radius: 50%; }
     .reply-content { background: #fff; padding: 10px 15px; border-radius: 0 12px 12px 12px; border: 1px solid #eee; width: 100%; }
@@ -294,6 +300,12 @@ $listPersonal = $stmtPersonal->fetchAll(PDO::FETCH_ASSOC);
                                 <div class="feed-body">
                                     <div class="post-title"><?= htmlspecialchars($post['judul']) ?></div>
                                     <div class="post-content"><?= nl2br(htmlspecialchars($post['isi'])) ?></div>
+                                    
+                                    <?php if (!empty($post['foto_lampiran']) && file_exists("../" . $post['foto_lampiran'])): ?>
+                                        <div class="mt-3">
+                                            <img src="../<?= htmlspecialchars($post['foto_lampiran']) ?>" class="img-fluid rounded border" style="max-height: 350px; width: auto;" alt="Lampiran">
+                                        </div>
+                                    <?php endif; ?>
                                 </div>
                                 
                                 <div class="feed-footer">
@@ -328,6 +340,12 @@ $listPersonal = $stmtPersonal->fetchAll(PDO::FETCH_ASSOC);
                                                 <small class="text-muted" style="font-size:0.7rem"><?= date('d/m H:i', strtotime($rep['created_at'])) ?></small>
                                             </div>
                                             <div class="small text-secondary mt-1"><?= nl2br(htmlspecialchars($rep['isi'])) ?></div>
+                                            
+                                            <?php if (!empty($rep['foto_lampiran']) && file_exists("../" . $rep['foto_lampiran'])): ?>
+                                                <div class="mt-2">
+                                                    <img src="../<?= htmlspecialchars($rep['foto_lampiran']) ?>" class="img-fluid rounded border" style="max-height: 150px;" alt="Lampiran Balasan">
+                                                </div>
+                                            <?php endif; ?>
                                         </div>
                                     </div>
                                     <?php endforeach; ?>
@@ -370,15 +388,21 @@ $listPersonal = $stmtPersonal->fetchAll(PDO::FETCH_ASSOC);
                                 <div class="feed-body">
                                     <div class="post-title"><?= htmlspecialchars($msg['judul']) ?></div>
                                     <div class="post-content"><?= nl2br(htmlspecialchars($msg['isi'])) ?></div>
+                                    
+                                    <?php if (!empty($msg['foto_lampiran']) && file_exists("../" . $msg['foto_lampiran'])): ?>
+                                        <div class="mt-3">
+                                            <img src="../<?= htmlspecialchars($msg['foto_lampiran']) ?>" class="img-fluid rounded border" style="max-height: 350px; width: auto;" alt="Lampiran">
+                                        </div>
+                                    <?php endif; ?>
                                 </div>
                                 <div class="feed-footer">
-                                    <!-- <button class="btn btn-sm btn-outline-warning text-dark rounded-pill px-3 btn-reply"
+                                    <button class="btn btn-sm btn-outline-warning text-dark rounded-pill px-3 btn-reply"
                                         data-id="<?= $msg['id'] ?>"
                                         data-tipe="Personal"
                                         data-judul="<?= htmlspecialchars($msg['judul']) ?>"
                                         data-bs-toggle="modal" data-bs-target="#modalReply">
                                         <i class="fas fa-reply me-1"></i> Balas Personal
-                                    </button> -->
+                                    </button>
                                     
                                     <?php if($countRep > 0): ?>
                                     <button class="btn btn-sm btn-link text-secondary text-decoration-none" type="button" data-bs-toggle="collapse" data-bs-target="#collapseReply<?= $msg['id'] ?>">
@@ -400,6 +424,12 @@ $listPersonal = $stmtPersonal->fetchAll(PDO::FETCH_ASSOC);
                                                 <small class="text-muted" style="font-size:0.7rem"><?= date('d/m H:i', strtotime($rep['created_at'])) ?></small>
                                             </div>
                                             <div class="small text-secondary mt-1"><?= nl2br(htmlspecialchars($rep['isi'])) ?></div>
+                                            
+                                            <?php if (!empty($rep['foto_lampiran']) && file_exists("../" . $rep['foto_lampiran'])): ?>
+                                                <div class="mt-2">
+                                                    <img src="../<?= htmlspecialchars($rep['foto_lampiran']) ?>" class="img-fluid rounded border" style="max-height: 150px;" alt="Lampiran Balasan">
+                                                </div>
+                                            <?php endif; ?>
                                         </div>
                                     </div>
                                     <?php endforeach; ?>
@@ -420,7 +450,7 @@ $listPersonal = $stmtPersonal->fetchAll(PDO::FETCH_ASSOC);
 <div class="modal fade" id="modalPost" tabindex="-1">
     <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content border-0 shadow-lg">
-            <form method="POST">
+            <form method="POST" enctype="multipart/form-data">
                 <div class="modal-header bg-primary text-white">
                     <h5 class="modal-title fw-bold"><i class="fas fa-edit me-2"></i>Buat Topik Baru</h5>
                     <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
@@ -434,6 +464,11 @@ $listPersonal = $stmtPersonal->fetchAll(PDO::FETCH_ASSOC);
                     <div class="mb-3">
                         <label class="form-label fw-bold small text-muted">ISI PESAN</label>
                         <textarea name="isi" class="form-control" rows="4" required placeholder="Tuliskan sesuatu..."></textarea>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label fw-bold small text-muted">FOTO LAMPIRAN (OPSIONAL)</label>
+                        <input type="file" name="foto_lampiran" class="form-control" accept="image/*">
+                        <small class="text-muted">Format: JPG/PNG, Maks 2MB</small>
                     </div>
                     <div class="form-check form-switch p-2 bg-light rounded border">
                         <input class="form-check-input ms-1" type="checkbox" name="is_anonim">
@@ -451,7 +486,7 @@ $listPersonal = $stmtPersonal->fetchAll(PDO::FETCH_ASSOC);
 <div class="modal fade" id="modalReply" tabindex="-1">
     <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content border-0 shadow-lg">
-            <form method="POST">
+            <form method="POST" enctype="multipart/form-data">
                 <div class="modal-header bg-success text-white">
                     <h5 class="modal-title fw-bold"><i class="fas fa-reply me-2"></i>Tulis Balasan</h5>
                     <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
@@ -469,6 +504,12 @@ $listPersonal = $stmtPersonal->fetchAll(PDO::FETCH_ASSOC);
                     <div class="mb-3">
                         <label class="form-label fw-bold small text-muted">ISI BALASAN</label>
                         <textarea name="isi" class="form-control" rows="4" required placeholder="Tulis balasan Anda..."></textarea>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label fw-bold small text-muted">LAMPIRKAN FOTO (OPSIONAL)</label>
+                        <input type="file" name="foto_lampiran" class="form-control" accept="image/*">
+                        <small class="text-muted">Maks. 2MB</small>
                     </div>
                 </div>
                 <div class="modal-footer bg-light">

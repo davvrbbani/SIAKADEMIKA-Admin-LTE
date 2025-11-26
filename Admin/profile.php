@@ -5,11 +5,6 @@
 require_once "../config.php"; 
 
 require_login(); 
-if ($_SESSION['user_role'] !== 'dosen') {
-    echo "<script>alert('Akses Ditolak!'); window.location='../index.php';</script>";
-    exit;
-}
-
 $user_id = $_SESSION['user_id'];
 $msg = "";
 $msg_type = "";
@@ -17,21 +12,24 @@ $msg_type = "";
 // --- HANDLE POST REQUESTS ---
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     
-    // A. LOGIC UPDATE PROFIL (Nama, Email, Foto)
+    // A. LOGIC UPDATE PROFIL (Username, Email, Foto)
     if (isset($_POST['action']) && $_POST['action'] === 'update_profile') {
         try {
             $pdo->beginTransaction();
             
-            $nama_lengkap = trim($_POST['nama_lengkap']);
-            $email        = trim($_POST['email']);
+            $username = trim($_POST['username']);
+            $email    = trim($_POST['email']);
 
-            // Update Tabel Dosen
-            $stmtDosen = $pdo->prepare("UPDATE dosen SET nama_lengkap = ? WHERE user_id = ?");
-            $stmtDosen->execute([$nama_lengkap, $user_id]);
+            // Cek duplikasi Username/Email (kecuali milik sendiri)
+            $cek = $pdo->prepare("SELECT id FROM users WHERE (username = ? OR email = ?) AND id != ?");
+            $cek->execute([$username, $email, $user_id]);
+            if ($cek->rowCount() > 0) {
+                throw new Exception("Username atau Email sudah digunakan user lain.");
+            }
 
-            // Update Tabel Users (Email)
-            $stmtUser = $pdo->prepare("UPDATE users SET email = ? WHERE id = ?");
-            $stmtUser->execute([$email, $user_id]);
+            // Update Tabel Users
+            $stmtUser = $pdo->prepare("UPDATE users SET username = ?, email = ? WHERE id = ?");
+            $stmtUser->execute([$username, $email, $user_id]);
 
             // Update Foto (Jika ada)
             if (isset($_FILES['profile_image']) && $_FILES['profile_image']['error'] == 0) {
@@ -51,7 +49,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $oldFoto = $cekFoto->fetchColumn();
                 if ($oldFoto && file_exists("../" . $oldFoto)) unlink("../" . $oldFoto);
 
-                $new_filename = "dosen_" . $user_id . "_" . time() . "." . $ext;
+                $new_filename = "admin_" . $user_id . "_" . time() . "." . $ext;
                 if (move_uploaded_file($_FILES['profile_image']['tmp_name'], $target_dir . $new_filename)) {
                     $db_path = "uploads/profile/" . $new_filename;
                     $stmtImg = $pdo->prepare("UPDATE users SET profile_image = ? WHERE id = ?");
@@ -60,7 +58,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             }
 
             $pdo->commit();
-            $msg = "Data profil berhasil diperbarui!";
+            
+            // Update Session jika username berubah
+            $_SESSION['user_name'] = $username;
+            
+            $msg = "Profil Admin berhasil diperbarui!";
             $msg_type = "success";
 
         } catch (Exception $e) {
@@ -70,7 +72,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
     }
 
-    // B. LOGIC UPDATE PASSWORD (Terpisah)
+    // B. LOGIC UPDATE PASSWORD
     if (isset($_POST['action']) && $_POST['action'] === 'change_password') {
         try {
             $new_pass = trim($_POST['new_password']);
@@ -94,10 +96,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 }
 
 // --- AMBIL DATA USER ---
-$stmt = $pdo->prepare("SELECT u.username, u.email, u.profile_image, d.nama_lengkap, d.nidn FROM users u JOIN dosen d ON u.id = d.user_id WHERE u.id = ?");
+$stmt = $pdo->prepare("SELECT username, email, profile_image, created_at FROM users WHERE id = ?");
 $stmt->execute([$user_id]);
 $profile = $stmt->fetch(PDO::FETCH_ASSOC);
-$foto_profil = !empty($profile['profile_image']) ? "../" . $profile['profile_image'] : "https://ui-avatars.com/api/?name=" . urlencode($profile['nama_lengkap']) . "&background=0D6EFD&color=fff";
+
+// Foto Profil Default
+$foto_profil = !empty($profile['profile_image']) ? "../" . $profile['profile_image'] : "https://ui-avatars.com/api/?name=" . urlencode($profile['username']) . "&background=dc3545&color=fff";
 ?>
 
 <style>
@@ -122,7 +126,7 @@ $foto_profil = !empty($profile['profile_image']) ? "../" . $profile['profile_ima
         right: 5px;
         width: 35px;
         height: 35px;
-        background: #0d6efd;
+        background: #dc3545; /* Warna Merah untuk Admin */
         color: #fff;
         border-radius: 50%;
         display: flex;
@@ -132,29 +136,33 @@ $foto_profil = !empty($profile['profile_image']) ? "../" . $profile['profile_ima
         border: 2px solid #fff;
         transition: 0.2s;
     }
-    .btn-upload-icon:hover { background: #0b5ed7; transform: scale(1.1); }
+    .btn-upload-icon:hover { background: #bb2d3b; transform: scale(1.1); }
     
-    /* Tabs Custom */
+    /* Tabs Custom Admin */
     .nav-pills .nav-link { color: #495057; font-weight: 500; }
-    .nav-pills .nav-link.active { background-color: #0d6efd; color: #fff; font-weight: 600; box-shadow: 0 2px 5px rgba(13,110,253,0.3); }
+    .nav-pills .nav-link.active { background-color: #dc3545; color: #fff; font-weight: 600; box-shadow: 0 2px 5px rgba(220, 53, 69, 0.3); }
     
     /* Hide default file input */
     #fileInput { display: none; }
+    
+    /* Admin Badge */
+    .badge-admin { background: linear-gradient(45deg, #dc3545, #ff6b6b); border: none; }
 </style>
 
-<div class="app-content-header">
-    <div class="container-fluid">
+<main class="app-main">
+    <div class="app-content-header">
+        <div class="container-fluid">
         <div class="row">
+            <div class="col-sm-6">
             <div class="col-sm-6"><h3 class="mb-0 fw-bold text-dark">Profil Saya</h3></div>
+            </div>
             <div class="col-sm-6">
                 <ol class="breadcrumb float-sm-end">
-                    <li class="breadcrumb-item"><a href="index.php">Home</a></li>
-                    <li class="breadcrumb-item active">Profil</li>
+                    <li class="breadcrumb-item"><a href="?p=dashboard">Home</a></li>
+                    <li class="breadcrumb-item active">Profile</li>
                 </ol>
             </div>
         </div>
-    </div>
-</div>
 
 <div class="app-content">
     <div class="container-fluid">
@@ -172,30 +180,30 @@ $foto_profil = !empty($profile['profile_image']) ? "../" . $profile['profile_ima
                     <div class="card-body">
                         <div class="mt-4">
                             <div class="profile-container">
-                                <img src="<?= htmlspecialchars($foto_profil) ?>" class="profile-img" id="previewImg" alt="Foto Dosen">
+                                <img src="<?= htmlspecialchars($foto_profil) ?>" class="profile-img" id="previewImg" alt="Foto Admin">
                                 <label for="fileInput" class="btn-upload-icon" title="Ganti Foto">
                                     <i class="bi bi-camera"></i>
                                 </label>
                             </div>
-                            <h4 class="fw-bold text-dark mb-1"><?= htmlspecialchars($profile['nama_lengkap']) ?></h4>
-                            <p class="text-muted mb-2">Dosen Pengajar</p>
-                            <span class="badge bg-light text-dark border px-3 py-2 rounded-pill">
-                                NIDN: <?= htmlspecialchars($profile['nidn'] ?? '-') ?>
+                            <h4 class="fw-bold text-dark mb-1"><?= htmlspecialchars($profile['username']) ?></h4>
+                            <p class="text-muted mb-2">Administrator Sistem</p>
+                            <span class="badge badge-admin px-3 py-2 rounded-pill">
+                                <i class="bi bi-shield-fill"></i> Super User
                             </span>
                         </div>
                         <hr class="my-4">
                         <div class="text-start px-3">
-                            <small class="text-muted text-uppercase fw-bold ls-1">Info Akun</small>
+                            <small class="text-muted text-uppercase fw-bold ls-1">Detail Akun</small>
                             <div class="mt-3">
                                 <div class="d-flex align-items-center mb-3">
-                                    <div class="bg-light p-2 rounded me-3 text-primary"><i class="bi bi-person-circle"></i></div>
+                                    <div class="bg-light p-2 rounded me-3 text-danger"><i class="bi bi-calendar"></i></div>
                                     <div>
-                                        <small class="d-block text-muted">Username</small>
-                                        <span class="fw-bold"><?= htmlspecialchars($profile['username']) ?></span>
+                                        <small class="d-block text-muted">Bergabung Sejak</small>
+                                        <span class="fw-bold"><?= date('d F Y', strtotime($profile['created_at'])) ?></span>
                                     </div>
                                 </div>
                                 <div class="d-flex align-items-center">
-                                    <div class="bg-light p-2 rounded me-3 text-primary"><i class="bi bi-envelope"></i></div>
+                                    <div class="bg-light p-2 rounded me-3 text-danger"><i class="bi bi-envelope"></i></div>
                                     <div>
                                         <small class="d-block text-muted">Email</small>
                                         <span class="fw-bold text-break"><?= htmlspecialchars($profile['email']) ?></span>
@@ -213,7 +221,7 @@ $foto_profil = !empty($profile['profile_image']) ? "../" . $profile['profile_ima
                         <ul class="nav nav-pills p-2" id="profileTabs" role="tablist">
                             <li class="nav-item">
                                 <a class="nav-link active" id="tab-bio" data-bs-toggle="pill" href="#bio" role="tab">
-                                    <i class="bi bi-person-badge me-2"></i>Tentang
+                                    <i class="bi bi-info-circle me-2"></i>Info
                                 </a>
                             </li>
                             <li class="nav-item">
@@ -223,7 +231,7 @@ $foto_profil = !empty($profile['profile_image']) ? "../" . $profile['profile_ima
                             </li>
                             <li class="nav-item">
                                 <a class="nav-link" id="tab-pass" data-bs-toggle="pill" href="#pass" role="tab">
-                                    <i class="bi bi-file-lock me-2"></i>Ganti Password
+                                    <i class="bi bi-key me-2"></i>Ganti Password
                                 </a>
                             </li>
                         </ul>
@@ -232,27 +240,28 @@ $foto_profil = !empty($profile['profile_image']) ? "../" . $profile['profile_ima
                         <div class="tab-content">
                             
                             <div class="tab-pane fade show active" id="bio" role="tabpanel">
-                                <h5 class="fw-bold text-primary mb-4">Informasi Pribadi</h5>
-                                <div class="row mb-3">
-                                    <label class="col-sm-4 text-muted">Nama Lengkap</label>
-                                    <div class="col-sm-8 fw-bold"><?= htmlspecialchars($profile['nama_lengkap']) ?></div>
+                                <h5 class="fw-bold text-danger mb-4">Status Akun</h5>
+                                <div class="alert alert-light border-start border-danger border-4 shadow-sm">
+                                    <strong><i class="bi bi-user-shield me-2"></i> Role: Administrator</strong>
+                                    <p class="mb-0 mt-1 text-muted">Anda memiliki akses penuh untuk mengelola data mahasiswa, dosen, mata kuliah, dan sistem akademik.</p>
+                                </div>
+                                
+                                <div class="row mb-3 mt-4">
+                                    <label class="col-sm-4 text-muted">Username</label>
+                                    <div class="col-sm-8 fw-bold"><?= htmlspecialchars($profile['username']) ?></div>
                                 </div>
                                 <div class="row mb-3">
-                                    <label class="col-sm-4 text-muted">Nomor Induk (NIDN)</label>
-                                    <div class="col-sm-8"><?= htmlspecialchars($profile['nidn']) ?></div>
-                                </div>
-                                <div class="row mb-3">
-                                    <label class="col-sm-4 text-muted">Alamat Email</label>
+                                    <label class="col-sm-4 text-muted">Email</label>
                                     <div class="col-sm-8"><?= htmlspecialchars($profile['email']) ?></div>
                                 </div>
                                 <div class="row mb-3">
-                                    <label class="col-sm-4 text-muted">Status</label>
-                                    <div class="col-sm-8"><span class="badge bg-success">Aktif Mengajar</span></div>
+                                    <label class="col-sm-4 text-muted">Terdaftar</label>
+                                    <div class="col-sm-8"><?= date('d M Y H:i', strtotime($profile['created_at'])) ?> WIB</div>
                                 </div>
                             </div>
 
                             <div class="tab-pane fade" id="edit" role="tabpanel">
-                                <h5 class="fw-bold text-primary mb-4">Perbarui Data Diri</h5>
+                                <h5 class="fw-bold text-danger mb-4">Update Informasi Admin</h5>
                                 
                                 <form method="POST" enctype="multipart/form-data">
                                     <input type="hidden" name="action" value="update_profile">
@@ -260,13 +269,9 @@ $foto_profil = !empty($profile['profile_image']) ? "../" . $profile['profile_ima
                                     <input type="file" name="profile_image" id="fileInput" accept="image/*">
 
                                     <div class="mb-3">
-                                        <label class="form-label fw-bold small text-muted">NAMA LENGKAP</label>
-                                        <input type="text" class="form-control" name="nama_lengkap" value="<?= htmlspecialchars($profile['nama_lengkap']) ?>" required>
-                                    </div>
-                                    
-                                    <div class="mb-3">
-                                        <label class="form-label fw-bold small text-muted">NIDN (Tidak dapat diubah)</label>
-                                        <input type="text" class="form-control bg-light" value="<?= htmlspecialchars($profile['nidn']) ?>" disabled>
+                                        <label class="form-label fw-bold small text-muted">USERNAME (Digunakan untuk Login)</label>
+                                        <input type="text" class="form-control" name="username" value="<?= htmlspecialchars($profile['username']) ?>" required>
+                                        <small class="text-muted">Pastikan username unik dan mudah diingat.</small>
                                     </div>
 
                                     <div class="mb-4">
@@ -275,8 +280,8 @@ $foto_profil = !empty($profile['profile_image']) ? "../" . $profile['profile_ima
                                     </div>
 
                                     <div class="text-end">
-                                        <button type="submit" class="btn btn-primary px-4">
-                                            <i class="fas fa-save me-2"></i>Simpan Perubahan
+                                        <button type="submit" class="btn btn-danger px-4">
+                                            <i class="bi bi-save me-2"></i>Simpan Perubahan
                                         </button>
                                     </div>
                                 </form>
@@ -285,7 +290,7 @@ $foto_profil = !empty($profile['profile_image']) ? "../" . $profile['profile_ima
                             <div class="tab-pane fade" id="pass" role="tabpanel">
                                 <h5 class="fw-bold text-danger mb-4">Keamanan Akun</h5>
                                 <div class="alert alert-warning small">
-                                    <i class="fas fa-exclamation-triangle me-1"></i> Pastikan password baru Anda kuat dan tidak mudah ditebak.
+                                    <i class="bi bi-lock me-1"></i> Sebagai Admin, pastikan menggunakan password yang sangat kuat untuk melindungi data sistem.
                                 </div>
 
                                 <form method="POST">
@@ -302,7 +307,7 @@ $foto_profil = !empty($profile['profile_image']) ? "../" . $profile['profile_ima
                                     </div>
 
                                     <div class="text-end">
-                                        <button type="submit" class="btn btn-danger px-4">
+                                        <button type="submit" class="btn btn-dark px-4">
                                             <i class="fas fa-key me-2"></i>Update Password
                                         </button>
                                     </div>
@@ -330,7 +335,7 @@ $foto_profil = !empty($profile['profile_image']) ? "../" . $profile['profile_ima
             }
             fr.readAsDataURL(files[0]);
             
-            // Pindah ke tab "Edit Profil" otomatis jika user ganti foto
+            // Otomatis pindah ke tab Edit jika ganti foto
             var triggerTab = new bootstrap.Tab(document.querySelector('#tab-edit'))
             triggerTab.show()
         }

@@ -8,6 +8,9 @@ switch ($p) {
     case 'activity':
         include "activity.php";
         break;
+    case 'profile':
+        include "profile.php";
+        break;
     case 'dosen':
         include "datadosen/dosen.php";
         break;

@@ -33,7 +33,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $ruangan     = trim($_POST['ruangan']);
 
             // Validasi: Pastikan jadwal ini milik dosen yang sedang login
-            // Kita kunci dosen_id di query update agar tidak bisa edit punya orang lain
             $sql = "UPDATE jadwal_kuliah SET 
                     hari = ?, 
                     jam_mulai = ?, 
@@ -45,12 +44,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $stmt->execute([$hari, $jam_mulai, $jam_selesai, $ruangan, $id_jadwal, $id_dosen_sekarang]);
 
             if ($stmt->rowCount() > 0) {
-                // Catat Log
                 log_activity($pdo, $user_id_login, "Mengubah jadwal ID: $id_jadwal ($hari, $jam_mulai)");
-                echo "<script>alert('Jadwal berhasil diperbarui!'); window.location='./?p=jadwal';</script>";
+                echo "<script>alert('Jadwal berhasil diperbarui!'); window.location='jadwal.php';</script>";
             } else {
-                // Jika tidak ada row yg berubah (mungkin data sama atau ID salah)
-                echo "<script>alert('Tidak ada perubahan data atau Jadwal tidak ditemukan.'); window.location='./?p=jadwal';</script>";
+                echo "<script>alert('Tidak ada perubahan data atau Jadwal tidak ditemukan.'); window.location='jadwal.php';</script>";
             }
         }
     } catch (Exception $e) {
@@ -61,8 +58,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 // ==============================================================
 // 3. QUERY DATA (READ)
 // ==============================================================
-// Query Join ke Matkul dan Kelas, difilter WHERE dosen_id
-// ORDER BY FIELD digunakan agar urutan harinya Senin -> Minggu (bukan Alphabet)
+// Update: Menambahkan logika Semester. 
+// Karena di tabel 'kelas' tidak ada kolom semester, kita asumsikan semester diambil dari:
+// 1. Tabel mahasiswa (ambil rata-rata/mayoritas semester di kelas itu)
+// 2. ATAU hitung manual berdasarkan Angkatan dan Tahun sekarang.
+// Di sini saya gunakan hitungan manual Angkatan vs Tahun Sekarang (lebih akurat untuk konteks kelas).
+
 $query = "
     SELECT jk.*, mk.nama_mk, mk.sks, mk.kode_mk, k.kelas, k.angkatan 
     FROM jadwal_kuliah jk
@@ -74,6 +75,24 @@ $query = "
 $stmt = $pdo->prepare($query);
 $stmt->execute([$id_dosen_sekarang]);
 $jadwalList = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+// Helper function hitung semester
+function hitungSemester($angkatan) {
+    $tahun_sekarang = date('Y');
+    $bulan_sekarang = date('n');
+    
+    $selisih_tahun = $tahun_sekarang - $angkatan;
+    
+    // Jika bulan sekarang >= Agustus (8), berarti masuk semester Ganjil (1, 3, 5, 7)
+    // Jika < Agustus, berarti masih semester Genap tahun ajaran sebelumnya (2, 4, 6, 8)
+    if ($bulan_sekarang >= 8) {
+        $semester = ($selisih_tahun * 2) + 1;
+    } else {
+        $semester = ($selisih_tahun * 2);
+    }
+    
+    return ($semester > 0) ? $semester : 1; // Minimal semester 1
+}
 ?>
 
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
@@ -133,12 +152,13 @@ $jadwalList = $stmt->fetchAll(PDO::FETCH_ASSOC);
     }
     
     .class-info {
-        font-size: 0.9rem;
-        color: #858796;
+        font-size: 0.95rem; /* Sedikit diperbesar */
+        color: #5a5c69;
         margin-bottom: 15px;
         display: flex;
         align-items: center;
-        gap: 10px;
+        gap: 8px;
+        font-weight: 600;
     }
 
     .time-box {
@@ -202,7 +222,10 @@ $jadwalList = $stmt->fetchAll(PDO::FETCH_ASSOC);
                     <h5 class="text-muted">Tidak ada jadwal mengajar ditemukan.</h5>
                 </div>
             <?php else: ?>
-                <?php foreach($jadwalList as $row): ?>
+                <?php foreach($jadwalList as $row): 
+                    // Hitung semester
+                    $smt = hitungSemester($row['angkatan']);
+                ?>
                     <div class="col-lg-4 col-md-6 mb-4 search-item">
                         <div class="jadwal-card border-<?= $row['hari'] ?>">
                             <div class="card-body-custom">
@@ -216,9 +239,11 @@ $jadwalList = $stmt->fetchAll(PDO::FETCH_ASSOC);
                                 <h5 class="mk-title mt-2"><?= htmlspecialchars($row['nama_mk']) ?></h5>
                                 
                                 <div class="class-info">
-                                    <span><i class="fa-solid fa-users-line"></i> Kelas <?= htmlspecialchars($row['kelas']) ?></span>
-                                    <span class="text-muted small">|</span>
-                                    <span class="small">Angkatan <?= htmlspecialchars($row['angkatan']) ?></span>
+                                    <i class="fa-solid fa-users-line text-secondary"></i> 
+                                    <span>Semester <?= $smt ?> - Kelas <?= htmlspecialchars($row['kelas']) ?></span>
+                                </div>
+                                <div class="text-muted small mb-3 ps-4" style="margin-top: -10px;">
+                                    Angkatan <?= htmlspecialchars($row['angkatan']) ?>
                                 </div>
 
                                 <div class="time-box">
@@ -239,6 +264,7 @@ $jadwalList = $stmt->fetchAll(PDO::FETCH_ASSOC);
                                     data-ruangan="<?= htmlspecialchars($row['ruangan']) ?>"
                                     data-namamk="<?= htmlspecialchars($row['nama_mk']) ?>"
                                     data-kelas="<?= htmlspecialchars($row['kelas']) ?>"
+                                    data-semester="<?= $smt ?>"
                                     data-bs-toggle="modal" data-bs-target="#modalEditJadwal">
                                     <i class="fa-solid fa-pen-to-square me-2"></i> Edit Jadwal
                                 </button>
@@ -268,7 +294,8 @@ $jadwalList = $stmt->fetchAll(PDO::FETCH_ASSOC);
                         <small class="text-muted d-block text-uppercase fw-bold">Mata Kuliah</small>
                         <strong class="text-dark fs-5" id="viewMatkul">-</strong>
                         <div class="mt-1">
-                            <small class="text-muted">Kelas: </small> <strong id="viewKelas">-</strong>
+                            <small class="text-muted">Target:</small> 
+                            <strong id="viewKelasSemester">-</strong>
                         </div>
                     </div>
 
@@ -328,7 +355,6 @@ $jadwalList = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
     // Populate Modal Edit
     $(document).on('click', '.btn-edit', function() {
-        // Ambil data dari atribut tombol
         let id = $(this).data('id');
         let hari = $(this).data('hari');
         let mulai = $(this).data('jammulai');
@@ -336,16 +362,15 @@ $jadwalList = $stmt->fetchAll(PDO::FETCH_ASSOC);
         let ruang = $(this).data('ruangan');
         let matkul = $(this).data('namamk');
         let kelas = $(this).data('kelas');
+        let smt = $(this).data('semester');
 
-        // Isi field input
         $('#editId').val(id);
         $('#editHari').val(hari);
         $('#editJamMulai').val(mulai);
         $('#editJamSelesai').val(selesai);
         $('#editRuangan').val(ruang);
 
-        // Isi field Read-only (untuk info)
         $('#viewMatkul').text(matkul);
-        $('#viewKelas').text(kelas);
+        $('#viewKelasSemester').text('Semester ' + smt + ' - Kelas ' + kelas);
     });
 </script>
