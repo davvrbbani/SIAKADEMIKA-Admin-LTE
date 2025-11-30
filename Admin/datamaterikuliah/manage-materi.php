@@ -1,36 +1,46 @@
 <?php
-require_once "../config.php"; // Sesuaikan path
+require_once "../config.php"; 
+
+// --- 1. AMBIL DATA KELAS UNTUK FILTER ---
+try {
+    $stmtKelas = $pdo->query("SELECT * FROM kelas ORDER BY kelas ASC");
+    $kelasList = $stmtKelas->fetchAll(PDO::FETCH_ASSOC);
+} catch (PDOException $e) {
+    die("Gagal ambil kelas: " . $e->getMessage());
+}
+
+// --- 2. QUERY UTAMA DENGAN FILTER ---
+$filter_kelas = isset($_GET['kelas_id']) ? $_GET['kelas_id'] : '';
+
+$sql = "
+    SELECT 
+        m.id, m.judul, m.deskripsi, m.tipe_materi, m.created_at,
+        mk.nama_mk, d.nama_lengkap AS nama_dosen, k.kelas, k.angkatan
+    FROM materi_kuliah AS m
+    LEFT JOIN jadwal_kuliah AS jk ON m.jadwal_kuliah_id = jk.id
+    LEFT JOIN mata_kuliah AS mk ON jk.mata_kuliah_id = mk.id
+    LEFT JOIN dosen AS d ON jk.dosen_id = d.id
+    LEFT JOIN kelas AS k ON jk.kelas_id = k.id
+    WHERE 1=1
+";
+
+// Tambahkan kondisi filter jika ada
+if (!empty($filter_kelas)) {
+    $sql .= " AND jk.kelas_id = :kelas_id";
+}
+
+$sql .= " ORDER BY m.created_at DESC";
 
 try {
-    // Query JOIN kompleks untuk mengambil SEMUA materi dan info relasinya
-    $stmt = $pdo->query("
-        SELECT 
-            m.id, 
-            m.judul, 
-            m.tipe_materi, 
-            m.created_at,
-            mk.nama_mk,
-            d.nama_lengkap AS nama_dosen,
-            k.kelas, 
-            k.angkatan
-        FROM 
-            materi_kuliah AS m
-        LEFT JOIN 
-            jadwal_kuliah AS jk ON m.jadwal_kuliah_id = jk.id
-        LEFT JOIN 
-            mata_kuliah AS mk ON jk.mata_kuliah_id = mk.id
-        LEFT JOIN 
-            dosen AS d ON jk.dosen_id = d.id
-        LEFT JOIN 
-            kelas AS k ON jk.kelas_id = k.id
-        ORDER BY
-            m.created_at DESC
-    ");
+    $stmt = $pdo->prepare($sql);
+    if (!empty($filter_kelas)) {
+        $stmt->bindValue(':kelas_id', $filter_kelas);
+    }
+    $stmt->execute();
     $materiRows = $stmt->fetchAll(PDO::FETCH_ASSOC);
-
 } catch (PDOException $e) {
     echo "Error: " . $e->getMessage();
-    $materiRows = []; // Kosongkan jika error
+    $materiRows = [];
 }
 ?>
 
@@ -58,20 +68,34 @@ try {
                                 <h3 class="card-title mb-2 mb-md-0">Seluruh Materi Kuliah</h3>
                                 
                                 <div class="d-flex align-items-center gap-2">
+                                    
+                                <form method="GET" action="" class="d-flex align-items-center">
+                                    <input type="hidden" name="p" value="materi-kuliah"> 
+                                    
+                                    <select class="form-select form-select-sm me-2" name="kelas_id" onchange="this.form.submit()" style="width: 150px;">
+                                        <option value="">-- Semua Kelas --</option>
+                                        <?php foreach ($kelasList as $k): ?>
+                                            <option value="<?= $k['id'] ?>" <?= ($filter_kelas == $k['id']) ? 'selected' : '' ?>>
+                                                <?= htmlspecialchars($k['kelas']) ?>
+                                            </option>
+                                        <?php endforeach; ?>
+                                    </select>
+                                </form>
+
                                     <div class="position-relative">
                                         <input type="text" id="searchMateri" 
                                                class="form-control form-control-sm me-2" 
-                                               placeholder="Cari judul, matkul, dosen..." autocomplete="off">
+                                               placeholder="Cari judul, matkul..." autocomplete="off" style="width: 200px;">
                                         <div id="suggestionBoxMateri" 
-                                             class="list-group position-absolute w-100" 
-                                             style="z-index: 1000; display: none; max-height: 300px; overflow-y: auto;"></div>
+                                             class="list-group position-absolute w-100 shadow" 
+                                             style="z-index: 1000; display: none;"></div>
                                     </div>
 
-                                    <a href="./?p=manage-materi" class="btn btn-primary btn-sm ms-2">
+                                    <a href="./?p=manage-materi" class="btn btn-primary btn-sm ms-1">
                                         <i class="bi bi-arrow-clockwise"></i>
                                     </a>
-                                    <a href="./?p=add-materi" class="btn btn-success btn-sm ms-2"> 
-                                        <i class="fas fa-plus"></i> Tambah Materi
+                                    <a href="./?p=add-materi" class="btn btn-success btn-sm ms-1"> 
+                                        <i class="fas fa-plus"></i> Tambah
                                     </a>
                                 </div>
                             </div>
@@ -94,14 +118,14 @@ try {
                                     <tbody>
                                         <?php if (empty($materiRows)): ?>
                                             <tr>
-                                                <td colspan="7" class="text-center text-muted">Belum ada data materi.</td>
+                                                <td colspan="7" class="text-center text-muted py-4">Belum ada data materi.</td>
                                             </tr>
                                         <?php else: ?>
                                             <?php $n = 1; ?>
                                             <?php foreach ($materiRows as $m): ?>
-                                                <tr class='text-center'>
+                                                <tr class='text-center align-middle'>
                                                     <td><?= $n++; ?></td>
-                                                    <td class='text-start'><?= htmlspecialchars($m['judul']); ?></td>
+                                                    <td class='text-start fw-bold'><?= htmlspecialchars($m['judul']); ?></td>
                                                     <td>
                                                         <?php if ($m['tipe_materi'] == 'File'): ?>
                                                             <span class="badge bg-primary">File</span>
@@ -111,7 +135,13 @@ try {
                                                     </td>
                                                     <td class='text-start'><?= htmlspecialchars($m['nama_mk'] ?? 'N/A'); ?></td>
                                                     <td class='text-start'><?= htmlspecialchars($m['nama_dosen'] ?? 'N/A'); ?></td>
-                                                    <td><?= htmlspecialchars(($m['kelas'] ?? 'N/A') . ' (' . ($m['angkatan'] ?? '-') . ')'); ?></td>
+                                                    <td>
+                                                        <?php if(!empty($m['kelas'])): ?>
+                                                            <span class="text-dark"><?= htmlspecialchars($m['kelas']) ?></span>
+                                                        <?php else: ?>
+                                                            <span class="text-muted small">-</span>
+                                                        <?php endif; ?>
+                                                    </td>
                                                     <td>
                                                         <div class='btn-group btn-group-sm' role='group'>
                                                             <a href='./?p=detail-materi&id=<?= $m["id"]; ?>' class='btn btn-info text-white'>
@@ -125,7 +155,7 @@ try {
                                                                onclick="return confirm('⚠️ Yakin mau hapus materi ini? File fisik (jika ada) juga akan terhapus.');">
                                                                 <i class='fas fa-trash'></i> Hapus
                                                             </a>
-                                                            </div>
+                                                        </div>
                                                     </td>
                                                 </tr>
                                             <?php endforeach; ?>
@@ -134,16 +164,19 @@ try {
                                 </table>
                             </div>
                         </div>
+                        <div class="card-footer clearfix">
+                             <small class="text-muted">Total: <?= count($materiRows) ?> Materi</small>
+                        </div>
                     </div>
                 </div>
             </div>
         </div>
     </div>
-    </main>
+</main>
+
 <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
 <script>
 $(document).ready(function() {
-    // ... (AJAX keyup dan click luar - TETAP SAMA) ...
     $('#searchMateri').on('keyup', function() {
         let query = $(this).val().trim();
         if (query.length > 1) {
@@ -167,7 +200,6 @@ $(document).ready(function() {
         }
     });
 
-    // ... (AJAX klik suggestion) ...
     $(document).on('click', '#suggestionBoxMateri .suggestion-item', function(e) {
         e.preventDefault();
         const materiId = $(this).attr('data-id');
@@ -186,13 +218,12 @@ $(document).ready(function() {
                     const tipe = res.tipe_materi === 'File' 
                         ? `<span class="badge bg-primary">File</span>` 
                         : `<span class="badge bg-danger">Link</span>`;
-                    const kelas = (res.kelas ? res.kelas : 'N/A') + ' (' + (res.angkatan ? res.angkatan : '-') + ')';
+                    const kelas = res.kelas ? `<span class="text-dark">${res.kelas}</span>` : '<span class="text-muted small">-</span>';
                     
-                    // ===================== PERBAIKAN DI SINI (JAVASCRIPT) =====================
                     const row = `
-                        <tr class="text-center">
+                        <tr class="text-center align-middle">
                             <td>1</td>
-                            <td class="text-start">${res.judul}</td>
+                            <td class="text-start fw-bold">${res.judul}</td>
                             <td>${tipe}</td>
                             <td class="text-start">${res.nama_mk ?? 'N/A'}</td>
                             <td class="text-start">${res.nama_dosen ?? 'N/A'}</td>
@@ -211,7 +242,6 @@ $(document).ready(function() {
                                 </div>
                             </td>
                         </tr>`;
-                    // ================= END PERBAIKAN =================
                     
                     $('table tbody').html(row);
                 } else {

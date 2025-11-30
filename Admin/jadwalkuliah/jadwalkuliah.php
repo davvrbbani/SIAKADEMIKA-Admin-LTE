@@ -1,36 +1,45 @@
 <?php
-require_once "../config.php"; // Pastikan path ini benar
+require_once "../config.php"; 
+
+// --- 1. AMBIL DATA KELAS UNTUK FILTER ---
+try {
+    $stmtKelas = $pdo->query("SELECT * FROM kelas ORDER BY kelas ASC");
+    $kelasList = $stmtKelas->fetchAll(PDO::FETCH_ASSOC);
+} catch (PDOException $e) {
+    die("Gagal ambil kelas: " . $e->getMessage());
+}
+
+// --- 2. QUERY UTAMA JADWAL DENGAN FILTER ---
+$filter_kelas = isset($_GET['kelas_id']) ? $_GET['kelas_id'] : '';
+
+$sql = "
+    SELECT 
+        jk.id, jk.hari, jk.jam_mulai, jk.jam_selesai, jk.ruangan,
+        mk.nama_mk, d.nama_lengkap AS nama_dosen, k.kelas, k.angkatan
+    FROM jadwal_kuliah AS jk
+    LEFT JOIN mata_kuliah AS mk ON jk.mata_kuliah_id = mk.id
+    LEFT JOIN dosen AS d ON jk.dosen_id = d.id
+    LEFT JOIN kelas AS k ON jk.kelas_id = k.id
+    WHERE 1=1
+";
+
+if (!empty($filter_kelas)) {
+    $sql .= " AND jk.kelas_id = :kelas_id";
+}
+
+$sql .= " ORDER BY FIELD(jk.hari, 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu', 'Minggu'), jk.jam_mulai ASC";
 
 try {
-    // Query JOIN untuk menggabungkan 4 tabel
-    $stmt = $pdo->query("
-        SELECT 
-            jk.id, 
-            jk.hari, 
-            jk.jam_mulai, 
-            jk.jam_selesai, 
-            jk.ruangan,
-            mk.nama_mk,
-            d.nama_lengkap AS nama_dosen,
-            k.kelas, 
-            k.angkatan
-        FROM 
-            jadwal_kuliah AS jk
-        LEFT JOIN 
-            mata_kuliah AS mk ON jk.mata_kuliah_id = mk.id
-        LEFT JOIN 
-            dosen AS d ON jk.dosen_id = d.id
-        LEFT JOIN 
-            kelas AS k ON jk.kelas_id = k.id
-        ORDER BY
-            FIELD(jk.hari, 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu', 'Minggu'), 
-            jk.jam_mulai ASC
-    ");
+    $stmt = $pdo->prepare($sql);
+    if (!empty($filter_kelas)) {
+        $stmt->bindValue(':kelas_id', $filter_kelas);
+    }
+    $stmt->execute();
     $jadwalRows = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
 } catch (PDOException $e) {
     echo "Error: " . $e->getMessage();
-    $jadwalRows = []; // Kosongkan jika error
+    $jadwalRows = [];
 }
 ?>
 
@@ -57,20 +66,35 @@ try {
                         <div class="card-header">
                             <div class="d-flex justify-content-between align-items-center flex-wrap">
                                 <h3 class="card-title mb-2 mb-md-0">Data Jadwal Kuliah</h3>
+                                
                                 <div class="d-flex align-items-center gap-2">
+                                    
+                                    <form method="GET" action="" class="d-flex align-items-center">
+                                        <input type="hidden" name="p" value="jadwal-kuliah">
+                                        <select class="form-select form-select-sm me-2" name="kelas_id" onchange="this.form.submit()" style="width: 150px;">
+                                            <option value="">-- Semua Kelas --</option>
+                                            <?php foreach ($kelasList as $k): ?>
+                                                <option value="<?= $k['id'] ?>" <?= ($filter_kelas == $k['id']) ? 'selected' : '' ?>>
+                                                    <?= htmlspecialchars($k['kelas']) ?>
+                                                </option>
+                                            <?php endforeach; ?>
+                                        </select>
+                                    </form>
+
                                     <div class="position-relative">
                                         <input type="text" id="searchJadwal" 
                                                class="form-control form-control-sm me-2" 
-                                               placeholder="Cari matkul, dosen, hari..." autocomplete="off">
+                                               placeholder="Cari matkul, dosen..." autocomplete="off" style="width: 200px;">
                                         <div id="suggestionBoxJadwal" 
-                                             class="list-group position-absolute w-100" 
-                                             style="z-index: 1000; display: none; max-height: 300px; overflow-y: auto;"></div>
+                                             class="list-group position-absolute w-100 shadow" 
+                                             style="z-index: 1000; display: none;"></div>
                                     </div>
-                                    <a href="./?p=jadwal-kuliah" class="btn btn-primary btn-sm ms-2">
+
+                                    <a href="./?p=jadwal-kuliah" class="btn btn-primary btn-sm ms-1">
                                         <i class="bi bi-arrow-clockwise"></i>
                                     </a>
-                                    <a href="./?p=add-jadwal" class="btn btn-success btn-sm ms-2">
-                                        <i class="fas fa-plus"></i> Tambah Jadwal
+                                    <a href="./?p=add-jadwal" class="btn btn-success btn-sm ms-1">
+                                        <i class="fas fa-plus"></i> Tambah
                                     </a>
                                 </div>
                             </div>
@@ -94,19 +118,25 @@ try {
                                     <tbody>
                                         <?php if (empty($jadwalRows)): ?>
                                             <tr>
-                                                <td colspan="8" class="text-center text-muted">Belum ada data jadwal kuliah.</td>
+                                                <td colspan="8" class="text-center text-muted py-4">Belum ada data jadwal kuliah.</td>
                                             </tr>
                                         <?php else: ?>
                                             <?php $n = 1; ?>
                                             <?php foreach ($jadwalRows as $j): ?>
-                                                <tr class='text-center'>
+                                                <tr class='text-center align-middle'>
                                                     <td><?= $n++; ?></td>
-                                                    <td class='text-start'><?= htmlspecialchars($j['hari']); ?></td>
+                                                    <td class='text-start fw-bold'><?= htmlspecialchars($j['hari']); ?></td>
                                                     <td><?= htmlspecialchars(substr($j['jam_mulai'], 0, 5) . ' - ' . substr($j['jam_selesai'], 0, 5)); ?></td>
                                                     <td><?= htmlspecialchars($j['ruangan']); ?></td>
                                                     <td class='text-start'><?= htmlspecialchars($j['nama_mk'] ?? 'N/A'); ?></td>
                                                     <td class='text-start'><?= htmlspecialchars($j['nama_dosen'] ?? 'N/A'); ?></td>
-                                                    <td><?= htmlspecialchars(($j['kelas'] ?? 'N/A') . ' (' . ($j['angkatan'] ?? '-') . ')'); ?></td>
+                                                    <td>
+                                                        <?php if(!empty($j['kelas'])): ?>
+                                                            <span class="text-dark"><?= htmlspecialchars($j['kelas']) ?></span>
+                                                        <?php else: ?>
+                                                            <span class="text-muted small">-</span>
+                                                        <?php endif; ?>
+                                                    </td>
                                                     <td>
                                                         <div class='btn-group btn-group-sm' role='group'>
                                                             <a href='./?p=detail-jadwal&id=<?= $j["id"]; ?>' class='btn btn-info text-white'>
@@ -129,16 +159,19 @@ try {
                                 </table>
                             </div>
                         </div>
+                        <div class="card-footer clearfix">
+                             <small class="text-muted">Total: <?= count($jadwalRows) ?> Jadwal</small>
+                        </div>
                     </div>
-                    </div>
+                </div>
             </div>
         </div>
     </div>
-    </main>
+</main>
+
 <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
 <script>
 $(document).ready(function() {
-    // ... (AJAX untuk search keyup tetap sama) ...
     $('#searchJadwal').on('keyup', function() {
         let query = $(this).val().trim();
         if (query.length > 1) {
@@ -164,7 +197,6 @@ $(document).ready(function() {
         }
     });
 
-    // ... (AJAX untuk klik suggestion) ...
     $(document).on('click', '#suggestionBoxJadwal .suggestion-item', function(e) {
         e.preventDefault();
         const jadwalId = $(this).attr('data-id'); 
@@ -181,13 +213,12 @@ $(document).ready(function() {
             success: function(res) {
                 if (res && res.id) {
                     const waktu = (res.jam_mulai ? res.jam_mulai.substring(0, 5) : '') + ' - ' + (res.jam_selesai ? res.jam_selesai.substring(0, 5) : '');
-                    const kelas = (res.kelas ? res.kelas : 'N/A') + ' (' + (res.angkatan ? res.angkatan : '-') + ')';
+                    const kelas = res.kelas ? `<span class="text-dark">${res.kelas}</span>` : '<span class="text-muted small">-</span>';
                     
-                    // ===================== PERBAIKAN DI SINI (JAVASCRIPT) =====================
                     const row = `
-                        <tr class="text-center">
+                        <tr class="text-center align-middle">
                             <td>1</td>
-                            <td class="text-start">${res.hari ?? ''}</td>
+                            <td class="text-start fw-bold">${res.hari ?? ''}</td>
                             <td>${waktu}</td>
                             <td>${res.ruangan ?? ''}</td>
                             <td class="text-start">${res.nama_mk ?? 'N/A'}</td>
@@ -208,9 +239,8 @@ $(document).ready(function() {
                                 </div>
                             </td>
                         </tr>`;
-                    // ================= END PERBAIKAN =================
                     
-                    $('table tbody').html(row); // Ganti isi tabel
+                    $('table tbody').html(row); 
                 } else {
                     $('table tbody').html('<tr><td colspan="8" class="text-center text-muted">Data tidak ditemukan</td></tr>');
                 }
