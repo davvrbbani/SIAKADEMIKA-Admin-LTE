@@ -15,7 +15,7 @@
 
     <!-- LEFT IMAGE SIDE -->
     <div class="image-container">
-        <img src="assets/img/Aviators.jpg" alt="Login Banner">
+        <img src="assets/img/logoAngkatan2024-min.png" alt="Login Banner">
     </div>
 
     <!-- RIGHT LOGIN FORM -->

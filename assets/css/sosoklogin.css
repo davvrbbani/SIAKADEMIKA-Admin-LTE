@@ -32,9 +32,9 @@ body, html {
 
 /* LEFT IMAGE */
 .image-container {
-    flex: 1;
-    background-color: #f0f0f0;
-    overflow: hidden;
+    flex: 1.1;
+    background-color: #000000;
+    overflow: auto;
 }
 
 .image-container img {
