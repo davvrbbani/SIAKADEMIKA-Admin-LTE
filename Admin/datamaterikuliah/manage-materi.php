@@ -67,7 +67,8 @@ try {
                             <div class="d-flex justify-content-between align-items-center flex-wrap">
                                 <h3 class="card-title mb-2 mb-md-0">Seluruh Materi Kuliah</h3>
                                 
-                                <div class="d-flex align-items-center gap-2">
+                                <div class="col-12 col-md-8">
+                                    <div class="d-flex flex-wrap justify-content-center justify-content-md-end gap-2">
                                     
                                 <form method="GET" action="" class="d-flex align-items-center">
                                     <input type="hidden" name="p" value="materi-kuliah"> 
@@ -100,6 +101,7 @@ try {
                                 </div>
                             </div>
                         </div>
+                    </div>
 
                         <div class="card-body p-0">
                             <div class="table-responsive">
