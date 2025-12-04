@@ -61,7 +61,7 @@ if (!empty($db_img) && file_exists("../" . $db_img)) {
             </li>
           </ul>
       <div>
-          <span class="nav-item align-items-centre ">Sistem Informasi Akademik Kelas Informatika A</span>
+          <span class="nav-item align-items-centre ">Sistem Informasi Akademik Informatika</span>
       </div>
           <ul class="navbar-nav ms-auto">
             

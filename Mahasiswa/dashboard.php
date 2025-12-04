@@ -1,30 +1,37 @@
 <?php
-// Query untuk mengambil data jadwal kuliah menggunakan PDO
+// Pastikan data mahasiswa tersedia (biasanya di-include dari index.php -> student_identity.php)
+// Ambil ID Kelas Mahasiswa yang sedang login
+$kelas_id_mahasiswa = $current_student['kelas_id'] ?? 0;
+
+// Query untuk mengambil data jadwal kuliah KHUSUS KELAS MAHASISWA TERSEBUT
+// PERBAIKAN: Menambahkan WHERE j.kelas_id = :kelas_id
 $query = "SELECT j.*, mk.nama_mk, d.nama_lengkap, k.kelas 
           FROM jadwal_kuliah j
           JOIN mata_kuliah mk ON j.mata_kuliah_id = mk.id
           JOIN dosen d ON j.dosen_id = d.id
           JOIN kelas k ON j.kelas_id = k.id
+          WHERE j.kelas_id = :kelas_id 
           ORDER BY 
             FIELD(j.hari, 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu', 'Minggu'),
             j.jam_mulai";
 
 try {
-    $stmt = $pdo->query($query);
+    // Gunakan prepare statement karena kita memasukkan parameter ID Kelas
+    $stmt = $pdo->prepare($query);
+    $stmt->execute(['kelas_id' => $kelas_id_mahasiswa]);
     $jadwalData = $stmt->fetchAll(PDO::FETCH_ASSOC);
 } catch (PDOException $e) {
     die("Error mengambil data jadwal: " . $e->getMessage());
 }
 
+// --- SISA KODE DI BAWAH INI TETAP SAMA SEPERTI SEBELUMNYA ---
+
 // Mendapatkan waktu saat ini dengan timezone Asia/Jakarta
 date_default_timezone_set('Asia/Jakarta');
-$sekarang = date('H:i:s'); // Format waktu sekarang sebagai string
+$sekarang = date('H:i:s'); 
 $hariIni = date('l');
 
-// Debug: Tampilkan waktu server saat ini (opsional, bisa dihapus setelah testing)
-// echo "<!-- Debug: Waktu server: " . $sekarang . " -->";
-
-// Mapping nama hari dalam bahasa Inggris ke Indonesia
+// Mapping nama hari
 $hariMapping = [
     'Monday' => 'Senin',
     'Tuesday' => 'Selasa',
@@ -45,7 +52,7 @@ foreach ($jadwalData as $jadwal) {
     if ($jadwal['hari'] === $hariIniIndonesia) {
         $jadwalHariIni[] = $jadwal;
         
-        // Cek apakah jadwal sedang berlangsung dengan perbandingan string waktu
+        // Cek apakah jadwal sedang berlangsung
         if ($sekarang >= $jadwal['jam_mulai'] && $sekarang <= $jadwal['jam_selesai']) {
             $jadwalBerlangsung[] = $jadwal;
         }
