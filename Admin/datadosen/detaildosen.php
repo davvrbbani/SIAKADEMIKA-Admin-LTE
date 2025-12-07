@@ -48,59 +48,63 @@ try {
             <div class="container-fluid">
                 <div class="row">
                     <div class="col-12">
-                        <div class="card shadow-sm">
-                            <div class="card-header bg-primary text-white">
-                                <h4 class="mb-0"><i class="fas fa-user-tie me-2"></i> Detail Dosen</h4>
-                            </div>
-                            </div>
-                            </div>
-                            <div class="card-body">
-                                <table class="table table-bordered">
-                                    <tr>
-                                        <th style="width: 30%;">Nama Lengkap</th>
-                                        <td><?= htmlspecialchars($dosen['nama_lengkap']) ?></td>
-                                    </tr>
-                                    <tr>
-                                        <th>NIDN</th>
-                                        <td><?= htmlspecialchars($dosen['nidn']) ?></td>
-                                    </tr>
-                                    <tr>
-                                        <th>Email</th>
-                                        <td><?= htmlspecialchars($dosen['email']) ?></td>
-                                    </tr>
-                                    <tr>
-                                        <th>Username</th>
-                                        <td><?= htmlspecialchars($dosen['username']) ?></td>
-                                    </tr>
-                                    <tr>
-                                        <th>Role</th>
-                                        <td><?= htmlspecialchars($dosen['role']) ?></td>
-                                    </tr>
-                                    <tr>
-                                        <th>Dibuat pada</th>
-                                        <td><?= htmlspecialchars($dosen['created_at']) ?></td>
-                                    </tr>
-                                    <tr>
-                                        <th>Terakhir diperbarui</th>
-                                        <td><?= htmlspecialchars($dosen['updated_at']) ?></td>
-                                    </tr>
-                                </table>
-                            </div>
-                            <div class="card-footer text-end">
-                                <a href="./?p=dosen" class="btn btn-primary text-white">
-                                    <i class="fas fa-arrow-left"></i> Back
-                                </a>
-                                <a href="./?p=editdsn&id=<?= $dosen['id'] ?>" class="btn btn-warning text-white">
-                                    <i class="fas fa-edit"></i> Edit
-                                </a>
-                                <a href="./?p=hapus-dsn&id=<?= $dosen['id'] ?>" 
-                                   class="btn btn-danger"
-                                   onclick="return confirm('⚠️ Yakin mau hapus data dosen ini? Data akan hilang permanen.');">
-                                    <i class="fas fa-trash"></i> Hapus
-                                </a>
-                            </div>
-                        </div>
-                        </div>
+<div class="card shadow-sm">
+    <div class="card-header bg-primary text-white">
+        <h4 class="mb-0"><i class="fas fa-user-tie me-2"></i> Detail Dosen</h4>
+    </div>
+    
+    <div class="card-body p-0">
+        <div class="table-responsive"> <table class="table table-hover table-striped align-middle mb-0 text-nowrap">
+                <tbody>
+                    <tr>
+                        <th style="width: 30%;" class="ps-4 bg-light">Nama Lengkap</th>
+                        <td class="pe-4"><?= htmlspecialchars($dosen['nama_lengkap']) ?></td>
+                    </tr>
+                    <tr>
+                        <th class="ps-4 bg-light">NIDN</th>
+                        <td class="pe-4"><?= htmlspecialchars($dosen['nidn']) ?></td>
+                    </tr>
+                    <tr>
+                        <th class="ps-4 bg-light">Email</th>
+                        <td class="pe-4"><?= htmlspecialchars($dosen['email']) ?></td>
+                    </tr>
+                    <tr>
+                        <th class="ps-4 bg-light">Username</th>
+                        <td class="pe-4"><?= htmlspecialchars($dosen['username']) ?></td>
+                    </tr>
+                    <tr>
+                        <th class="ps-4 bg-light">Role</th>
+                        <td class="pe-4">
+                            <span class="badge bg-info"><?= htmlspecialchars($dosen['role']) ?></span>
+                        </td>
+                    </tr>
+                    <tr>
+                        <th class="ps-4 bg-light">Dibuat pada</th>
+                        <td class="pe-4"><?= htmlspecialchars($dosen['created_at']) ?></td>
+                    </tr>
+                    <tr>
+                        <th class="ps-4 bg-light">Terakhir diperbarui</th>
+                        <td class="pe-4"><?= htmlspecialchars($dosen['updated_at']) ?></td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <div class="card-footer text-end bg-white border-top-0 py-3">
+        <a href="./?p=dosen" class="btn btn-secondary me-1">
+            <i class="fas fa-arrow-left me-1"></i> Kembali
+        </a>
+        <a href="./?p=editdsn&id=<?= $dosen['id'] ?>" class="btn btn-warning text-white me-1">
+            <i class="fas fa-edit me-1"></i> Edit
+        </a>
+        <a href="./?p=hapus-dsn&id=<?= $dosen['id'] ?>" 
+           class="btn btn-danger"
+           onclick="return confirm('⚠️ Yakin mau hapus data dosen ini? Data akan hilang permanen.');">
+            <i class="fas fa-trash me-1"></i> Hapus
+        </a>
+    </div>
+</div>
                     </div>
                 </div>
             </div>

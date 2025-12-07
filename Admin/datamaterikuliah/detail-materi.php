@@ -74,6 +74,7 @@ try {
                             <h4 class="mb-0">Detail Materi</h4>
                         </div>
                         <div class="card-body">
+                            <div class="table-responsive">
                             <table class="table table-bordered">
                                 <tr>
                                     <th style="width: 30%;">Judul Materi</th>
@@ -154,6 +155,7 @@ try {
                                     <td><?= htmlspecialchars($materi['created_at']) ?></td>
                                 </tr>
                             </table>
+                            </div>
                         </div>
                         <div class="card-footer text-end">
                             <a href="./?p=materi-kuliah" class="btn btn-primary text-white">
